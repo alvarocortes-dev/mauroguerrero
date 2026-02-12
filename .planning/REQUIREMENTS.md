@@ -104,48 +104,48 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VIEW-01 | — | Pending |
-| VIEW-02 | — | Pending |
-| VIEW-03 | — | Pending |
-| VIEW-04 | — | Pending |
-| VIEW-05 | — | Pending |
-| VIEW-06 | — | Pending |
-| VIEW-07 | — | Pending |
-| VIEW-08 | — | Pending |
-| GALL-01 | — | Pending |
-| GALL-02 | — | Pending |
-| GALL-03 | — | Pending |
-| PROJ-01 | — | Pending |
-| PROJ-02 | — | Pending |
-| PROJ-03 | — | Pending |
-| PROJ-04 | — | Pending |
-| PROJ-05 | — | Pending |
-| PROJ-06 | — | Pending |
-| PROJ-07 | — | Pending |
-| ADMN-01 | — | Pending |
-| ADMN-02 | — | Pending |
-| ADMN-03 | — | Pending |
-| ADMN-04 | — | Pending |
-| ADMN-05 | — | Pending |
-| ADMN-06 | — | Pending |
-| ADMN-07 | — | Pending |
-| ADMN-08 | — | Pending |
-| ADMN-09 | — | Pending |
-| ADMN-10 | — | Pending |
-| ADMN-11 | — | Pending |
-| ADMN-12 | — | Pending |
-| ADMN-13 | — | Pending |
-| ADMN-14 | — | Pending |
-| ADMN-15 | — | Pending |
-| ADMN-16 | — | Pending |
-| ADMN-17 | — | Pending |
-| CONT-01 | — | Pending |
+| VIEW-01 | Phase 1 | Pending |
+| VIEW-02 | Phase 1 | Pending |
+| VIEW-03 | Phase 1 | Pending |
+| VIEW-04 | Phase 1 | Pending |
+| VIEW-05 | Phase 1 | Pending |
+| VIEW-06 | Phase 1 | Pending |
+| VIEW-07 | Phase 1 | Pending |
+| VIEW-08 | Phase 1 | Pending |
+| GALL-01 | Phase 1 | Pending |
+| GALL-02 | Phase 1 | Pending |
+| GALL-03 | Phase 1 | Pending |
+| PROJ-01 | Phase 2 | Pending |
+| PROJ-02 | Phase 2 | Pending |
+| PROJ-03 | Phase 2 | Pending |
+| PROJ-04 | Phase 2 | Pending |
+| PROJ-05 | Phase 2 | Pending |
+| PROJ-06 | Phase 2 | Pending |
+| PROJ-07 | Phase 2 | Pending |
+| ADMN-01 | Phase 3 | Pending |
+| ADMN-02 | Phase 3 | Pending |
+| ADMN-03 | Phase 3 | Pending |
+| ADMN-04 | Phase 3 | Pending |
+| ADMN-05 | Phase 3 | Pending |
+| ADMN-06 | Phase 3 | Pending |
+| ADMN-07 | Phase 3 | Pending |
+| ADMN-08 | Phase 3 | Pending |
+| ADMN-09 | Phase 4 | Pending |
+| ADMN-10 | Phase 4 | Pending |
+| ADMN-11 | Phase 4 | Pending |
+| ADMN-12 | Phase 4 | Pending |
+| ADMN-13 | Phase 4 | Pending |
+| ADMN-14 | Phase 4 | Pending |
+| ADMN-15 | Phase 4 | Pending |
+| ADMN-16 | Phase 4 | Pending |
+| ADMN-17 | Phase 4 | Pending |
+| CONT-01 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 29 total
-- Mapped to phases: 0
-- Unmapped: 29 ⚠️
+- Mapped to phases: 29
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-12*
-*Last updated: 2026-02-12 after initial definition*
+*Last updated: 2026-02-12 after roadmap creation*
