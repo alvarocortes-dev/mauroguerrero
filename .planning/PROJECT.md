@@ -1,89 +1,139 @@
-# Mauro Guerrero Photography Portfolio
+# Mauro Guerrero — Photography Portfolio
 
 ## What This Is
 
-A professional photography portfolio website for Mauro Guerrero. The site is minimalist and elegant, featuring a main photo gallery with a masonry grid, project/portfolio pages with flexible row-based layouts, and an in-place admin system where the owner edits the live site directly through floating controls. Built with Next.js, PostgreSQL, Cloudinary, and Supabase auth.
+A professional photography portfolio website for a single photographer (Mauro Guerrero). The site has two faces: a public portfolio with a masonry grid homepage and project galleries, and a powerful admin system where the photographer builds layouts by dragging configurable blocks into grids. Content protection is critical — the photographer has been hacked before and needs maximum security for both access and image assets.
 
 ## Core Value
 
-The photographer can showcase their work beautifully and manage all content themselves through a visual editor that matches exactly what visitors see — no separate CMS, no disconnected admin panel.
+The photographer can independently build and manage beautiful, custom-layout galleries with full creative control — fast, intuitive, and protected.
 
 ## Requirements
 
 ### Validated
 
-<!-- Shipped and confirmed valuable. -->
+<!-- Shipped and confirmed valuable. Inferred from existing codebase. -->
 
-- ✓ Masonry photo gallery on home page — existing
-- ✓ Dark/light theme toggle with CSS variables — existing
-- ✓ Contact modal with form — existing
-- ✓ Credits modal — existing
-- ✓ Responsive sidebar navigation with mobile menu — existing
-- ✓ Basic drag-and-drop editor for layout items — existing
-- ✓ Image upload to Cloudinary — existing
-- ✓ Supabase authentication (login page, middleware protection) — existing
-- ✓ Layout persistence to PostgreSQL via Drizzle ORM — existing
+- ✓ Next.js app with route groups (site/editor) — existing
+- ✓ Basic masonry grid renderer with Framer Motion animations — existing
+- ✓ Editor with Zustand store (add, remove, move, update items) — existing
+- ✓ Layout item types: image, text, spacer — existing
+- ✓ Drag & drop reordering via dnd-kit — existing
+- ✓ Supabase auth with middleware protecting /editor routes — existing
+- ✓ Image upload to Cloudinary with server-side signature — existing
+- ✓ PostgreSQL database via Drizzle ORM — existing
+- ✓ API routes for layout CRUD and image upload — existing
+- ✓ Sidebar navigation with sections: Sobre mí, Proyectos, Contacto, Créditos — existing
+- ✓ Rich text editing via Tiptap — existing
 
 ### Active
 
 <!-- Current scope. Building toward these. -->
 
-- [ ] Photo viewer modal with adaptive aspect-ratio, close button (floating X above modal), and prev/next navigation
-- [ ] Photo zoom with click (toggle zoom in/out) and scroll wheel, with drag-to-pan when zoomed
-- [ ] Grayscale-to-color hover effect on gallery photos (configurable per photo — some stay B&W)
-- [ ] Projects section accessible via expandable sub-menu in sidebar
-- [ ] Project pages with row-based layout system (12-column grid for flexible column widths)
-- [ ] Project rows support: images (multiple per row with adjustable widths), text blocks, and blank spacers
-- [ ] Photos in projects reuse the same viewer modal (zoom, pan, navigation)
-- [ ] Admin route overlay (`/admin/*`) showing exact public view with floating edit controls
-- [ ] Admin for home gallery: add/remove photos, reorder, edit metadata (caption, alt, B&W flag), adjust size
-- [ ] Admin for projects: create/edit/delete projects, row-based WYSIWYG editor with drag-to-resize columns
-- [ ] Contact form connected to Resend for real email delivery
+**Grid Editor (core)**
+- [ ] Configurable column count per layout (e.g., 5 columns)
+- [ ] Block-based grid system with sizes (1x1, 2x1, 1x3, 2x5, etc.)
+- [ ] Block types: image, video embed, text, empty/spacer
+- [ ] Drag & drop blocks to build layouts
+- [ ] Resize, reposition, and align blocks within grid
+
+**Projects System**
+- [ ] Create/edit/delete projects, each with its own grid layout
+- [ ] Directory-style navigation in menu (click Proyectos → expandable tree)
+- [ ] Project ordering controlled by photographer
+- [ ] Categories/groupings for organizing projects
+
+**Photo Management**
+- [ ] Multi-file upload with drag & drop and file picker
+- [ ] Automatic resize to multiple sizes (thumbnail, medium, full)
+- [ ] Crop/recorte tool before publishing
+- [ ] Automatic watermark application (configurable)
+- [ ] EXIF metadata extraction and storage (camera, lens, aperture, ISO, etc.)
+- [ ] Internal photo gallery/library for managing all uploaded photos
+- [ ] Migrate storage from Cloudinary to Cloudflare R2
+
+**Lightbox / Photo Viewer**
+- [ ] Click any photo to open full-resolution modal with background blur
+- [ ] Left/right arrow navigation between consecutive photos
+- [ ] Optional EXIF metadata display panel within lightbox
+- [ ] Keyboard navigation support
+
+**Content Protection (maximum)**
+- [ ] Visible watermark overlay on photos
+- [ ] Disable right-click context menu on images
+- [ ] Disable image dragging
+- [ ] CSS anti-selection on image elements
+- [ ] Invisible overlay layer on top of images
+- [ ] Low-resolution display with high-res only via signed/temporary URLs
+- [ ] DevTools detection with content hiding
+- [ ] URL obfuscation — never expose direct image links
+- [ ] Anti-scraping measures (rate limiting, bot detection)
+
+**Authentication & Security**
+- [ ] Replace Supabase auth with self-hosted solution (no inactivity suspension)
+- [ ] Two-factor authentication (TOTP/authenticator app)
+- [ ] Single-user admin access
+
+**Analytics**
+- [ ] Visit tracking dashboard (origin, page views, dates)
+- [ ] Cloudflare analytics integration if feasible
+- [ ] Basic geographic/referrer data
+
+**Site Management**
+- [ ] Edit contact links and info from admin
+- [ ] Edit profile photo and bio from admin
+- [ ] Edit credits page content from admin
+
+**Performance**
+- [ ] Fast image loading with lazy loading and progressive enhancement
+- [ ] Optimized for older hardware (iMac) and modern devices
+- [ ] High-quality image display
 
 ### Out of Scope
 
 <!-- Explicit boundaries. Includes reasoning to prevent re-adding. -->
 
-- Sobre mí page — pending photographer meeting to define content
-- Diarios section — pending photographer meeting
-- 35mm section — pending photographer meeting
-- Blog section — pending photographer meeting
-- Social media link destinations — pending photographer input
-- OAuth/magic link login — email/password via Supabase sufficient
-- Mobile app — web-first
-- Real-time collaboration — single admin user
-- Image editing/cropping in admin — photos uploaded as-is, Cloudinary handles optimization
-- SEO/analytics — defer to future milestone
+- Native video hosting/upload — use YouTube/Vimeo embeds instead (storage costs)
+- Multi-user admin — single photographer, single admin account
+- E-commerce / photo sales — not a commerce platform
+- Blog / article system — portfolio-only focus
+- Mobile app — web-only, responsive design
+- Real-time collaboration — single user editing
+- Social features (comments, likes) — portfolio showcase, not social media
+- Email newsletter — not needed for portfolio
 
 ## Context
 
-The site is a brownfield project with a working foundation. The existing masonry gallery renders correctly, the theme system works, and the basic editor infrastructure (Zustand store, dnd-kit, Cloudinary uploads, API routes) is in place. However, the current editor renders at different proportions than the public site — the key transformation is making admin edit the actual live view.
+**Existing codebase:** Next.js 16 app with React 19, Tailwind CSS 4, Drizzle ORM, Zustand state management. Has a working editor prototype with basic masonry grid, item management, and Cloudinary uploads. Auth via Supabase middleware.
 
-**Tech already installed but unused:** TipTap (rich text editor), react-virtuoso (virtual scroll), AWS S3 SDK. TipTap will be useful for text blocks in project rows.
+**Migration needed:** Supabase suspends free-tier projects on inactivity — must migrate auth to a self-hosted solution. Cloudinary → Cloudflare R2 for storage (free egress, 10GB free). Both AWS S3 SDK (R2-compatible) and Cloudinary SDK currently in codebase.
 
-**Architecture pattern:** Next.js route groups — `(site)` for public, `(editor)` for current editor. The new admin will use a `/admin` route prefix that renders the same layouts as the public site but with edit controls overlaid.
+**Security concern:** The photographer has been hacked before. Auth security (2FA) and content protection are non-negotiable priorities.
 
-**Database:** Single `layouts` table stores layout data as JSONB. This will need to extend to support multiple project layouts (each project = a layout with its own slug).
+**Target user:** Professional photographer working on hardware ranging from older iMac to modern setups. Admin UX must be fast, intuitive, and performant across devices.
+
+**Budget constraint:** Must stay on free tiers for all services. Site must perform professionally despite zero infrastructure cost.
 
 ## Constraints
 
-- **Tech stack**: Next.js 16 + React 19 + Tailwind v4 + Drizzle + Supabase + Cloudinary — all already in place
-- **Design**: Minimalist and elegant — no cluttered UI, no unnecessary features
-- **Admin UX**: Must match public view exactly — no separate admin interface with different proportions
-- **Performance**: Gallery images need efficient loading (Cloudinary transformations, lazy loading)
-- **Grid system**: 12-column grid for project row editor (consistent, predictable)
+- **Budget**: Free tier only — Cloudflare R2, Turso/Neon PostgreSQL, Vercel hosting
+- **Storage**: Cloudflare R2 (10GB free/month, no egress fees)
+- **Auth**: No Supabase — self-hosted auth (NextAuth/Auth.js with credentials + TOTP)
+- **Performance**: Must work well on older iMac hardware — avoid heavy client-side computation
+- **Tech stack**: Next.js 16, React 19, TypeScript, Tailwind CSS 4, Drizzle ORM (keep existing)
+- **Single user**: One photographer, one admin — no multi-tenancy complexity
 
 ## Key Decisions
 
+<!-- Decisions that constrain future work. Add throughout project lifecycle. -->
+
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| /admin route overlay instead of separate editor | Owner must see exactly what visitors see while editing | — Pending |
-| 12-column grid for project rows | Predictable, well-understood system (Bootstrap-like) | — Pending |
-| Row-based layout for projects (not masonry) | Projects need editorial control over photo arrangement and sizing | — Pending |
-| Drag-to-pan for zoomed photos | Most intuitive for desktop photo viewing | — Pending |
-| Sidebar sub-menu for projects | Keeps navigation consistent, no extra pages needed for project listing | — Pending |
-| Resend for contact emails | Modern, developer-friendly email API | — Pending |
-| Reuse photo viewer modal across gallery and projects | Consistent UX, single implementation | — Pending |
+| Cloudflare R2 for storage | Free egress, S3-compatible, no inactivity suspension | — Pending |
+| Self-hosted auth (not Supabase) | Free tier suspends on inactivity; photographer was hacked before | — Pending |
+| Block-based grid editor (not free canvas) | Masonry with configurable blocks balances flexibility and build complexity | — Pending |
+| Video as embeds only | Avoids storage costs and processing complexity | — Pending |
+| EXIF extraction server-side on upload | Store once, display anywhere; keeps client lightweight | — Pending |
 
 ---
-*Last updated: 2026-02-12 after initialization*
+*Last updated: 2026-03-10 after initialization*
