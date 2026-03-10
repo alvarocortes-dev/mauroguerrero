@@ -1,269 +1,272 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-02-12
+**Analysis Date:** 2026-03-10
 
 ## Directory Layout
 
 ```
 mauroguerrero/
-├── .planning/                          # GSD planning documents
-│   ├── config.json                     # GSD configuration
-│   └── codebase/                       # Architecture analysis output
-├── drizzle/                            # Drizzle ORM migrations and snapshots
-│   └── meta/                           # Migration metadata
-├── public/                             # Static assets served directly
-│   └── avatar.jpg                      # Profile image
 ├── src/
-│   ├── app/                            # Next.js app directory with route groups
-│   │   ├── layout.tsx                  # Root layout (fonts, metadata)
-│   │   ├── globals.css                 # Global Tailwind styles
-│   │   ├── favicon.ico                 # Browser tab icon
-│   │   ├── (site)/                     # Public portfolio site routes
-│   │   │   ├── layout.tsx              # Site layout with sidebar
-│   │   │   └── page.tsx                # Home page (/)
-│   │   ├── (editor)/                   # Private editor interface routes
-│   │   │   ├── layout.tsx              # Editor layout (background styling)
+│   ├── app/                          # Next.js App Router
+│   │   ├── (site)/                   # Public portfolio routes
+│   │   │   ├── layout.tsx            # Site layout with sidebar
+│   │   │   └── page.tsx              # Home page
+│   │   ├── (editor)/                 # Protected editor routes
+│   │   │   ├── layout.tsx            # Editor layout wrapper
 │   │   │   ├── editor/
-│   │   │   │   └── page.tsx            # Main editor page (/editor)
+│   │   │   │   └── page.tsx          # Main editor page
 │   │   │   └── login/
-│   │   │       └── page.tsx            # Login page (not implemented)
-│   │   └── api/                        # API routes (serverless functions)
-│   │       ├── layouts/
-│   │       │   └── [slug]/
-│   │       │       └── route.ts        # GET/PUT layout by slug
-│   │       └── upload/
-│   │           └── route.ts            # POST signature for image upload
-│   ├── components/                     # Reusable React components (site-wide)
-│   │   ├── SidebarContent.tsx          # Navigation and profile sidebar
-│   │   ├── MobileMenu.tsx              # Mobile navigation drawer
-│   │   ├── Modal.tsx                   # Generic modal wrapper
-│   │   ├── ContactForm.tsx             # Contact form modal content
-│   │   ├── CreditsContent.tsx          # Credits modal content
-│   │   └── ThemeToggle.tsx             # Light/dark mode toggle
-│   ├── core/                           # Core business logic and rendering
-│   │   ├── renderer/                   # Layout rendering engine
-│   │   │   ├── Renderer.tsx            # Component that renders layout
-│   │   │   ├── types.ts                # Zod schemas and TypeScript types
-│   │   │   └── sample-layout.ts        # Default layout with sample images
-│   │   ├── editor/                     # Editor-specific components and state
-│   │   │   ├── store.ts                # Zustand store for editor state
-│   │   │   ├── EditorCanvas.tsx        # Drag-and-drop canvas with dnd-kit
-│   │   │   ├── SortableItem.tsx        # Wrapper for draggable items
-│   │   │   ├── Toolbar.tsx             # Fixed bottom toolbar with action buttons
-│   │   │   └── PropertiesPanel.tsx     # Right panel for item properties
-│   │   └── layout-engine/              # Layout calculation algorithms
-│   │       └── index.ts                # Masonry position calculation
-│   └── lib/                            # Utility functions and external integrations
-│       ├── auth/                       # Authentication utilities
-│       │   ├── server.ts               # SSR-safe Supabase client factory
-│       │   └── browser.ts              # Client-side Supabase client factory
-│       ├── db/                         # Database utilities
-│       │   ├── client.ts               # Drizzle ORM connection initialization
-│       │   ├── schema.ts               # Database table definitions
-│       │   └── layouts.ts              # Query functions (getLayoutBySlug, upsertLayout)
-│       ├── storage/                    # File storage utilities
-│       │   └── image-loader.ts         # Next.js image loader for CDN support
-│       └── cloudinary.ts               # Cloudinary SDK configuration and utilities
-├── middleware.ts                       # Next.js middleware (currently empty placeholder)
-├── drizzle.config.ts                   # Drizzle ORM configuration
-├── next.config.ts                      # Next.js configuration
-├── tsconfig.json                       # TypeScript configuration
-├── package.json                        # Dependencies and scripts
-├── package-lock.json                   # Dependency lock file
-├── CHANGELOG.md                        # Version history
-└── README.md                           # Project documentation
+│   │   │       └── page.tsx          # Login page
+│   │   ├── api/                      # API route handlers
+│   │   │   ├── layouts/[slug]/
+│   │   │   │   └── route.ts          # GET/PUT layout endpoints
+│   │   │   └── upload/
+│   │   │       └── route.ts          # POST upload signature
+│   │   ├── globals.css               # Global styles (Tailwind)
+│   │   └── layout.tsx                # Root layout
+│   │
+│   ├── components/                   # Shared UI components
+│   │   ├── ContactForm.tsx
+│   │   ├── CreditsContent.tsx
+│   │   ├── MobileMenu.tsx
+│   │   ├── Modal.tsx
+│   │   ├── SidebarContent.tsx
+│   │   └── ThemeToggle.tsx
+│   │
+│   ├── core/                         # Core business logic
+│   │   ├── editor/                   # Editor UI and state
+│   │   │   ├── EditorCanvas.tsx      # Drag-drop canvas with masonry
+│   │   │   ├── PropertiesPanel.tsx   # Item properties and upload
+│   │   │   ├── SortableItem.tsx      # Wrapper for dnd-kit
+│   │   │   ├── Toolbar.tsx           # Add item buttons + save
+│   │   │   └── store.ts              # Zustand editor state
+│   │   │
+│   │   ├── renderer/                 # Layout rendering engine
+│   │   │   ├── Renderer.tsx          # Generic layout renderer
+│   │   │   ├── types.ts              # Zod layout schemas
+│   │   │   └── sample-layout.ts      # Default layout data
+│   │   │
+│   │   └── layout-engine/            # Masonry algorithm
+│   │       └── index.ts              # Masonry position calculator
+│   │
+│   └── lib/                          # Utilities and integrations
+│       ├── auth/
+│       │   ├── server.ts             # Supabase server client
+│       │   └── browser.ts            # Supabase browser client
+│       │
+│       ├── db/
+│       │   ├── client.ts             # Drizzle connection pool
+│       │   ├── layouts.ts            # Layout queries/mutations
+│       │   └── schema.ts             # Drizzle table definitions
+│       │
+│       ├── storage/
+│       │   └── image-loader.ts       # Next.js image loader
+│       │
+│       └── cloudinary.ts             # Image service helpers
+│
+├── public/                           # Static assets
+│   ├── avatar.jpg
+│   └── photos/
+│
+├── drizzle/                          # Database migrations
+│
+├── .planning/                        # Project planning docs
+│
+├── middleware.ts                     # Auth middleware for /editor
+├── next.config.ts                    # Next.js configuration
+├── tailwind.config.js                # Tailwind CSS config
+├── tsconfig.json                     # TypeScript config
+├── eslint.config.mjs                 # ESLint configuration
+├── drizzle.config.ts                 # Drizzle kit config
+└── package.json                      # Dependencies
+
 ```
 
 ## Directory Purposes
 
-**src/app:**
-- Purpose: Next.js app directory containing all routes, layouts, and API endpoints
-- Contains: Route files (page.tsx, layout.tsx, route.ts), styling (globals.css)
-- Key files: `layout.tsx` (root), `(site)/page.tsx` (home), `(editor)/editor/page.tsx` (editor)
+**`src/app/(site)/`:**
+- Purpose: Public portfolio pages visible to all users
+- Contains: Page templates, site-specific layouts
+- Key files: `page.tsx` (home), `layout.tsx` (sidebar + responsive wrapper)
+- Route pattern: `/` and other public pages
 
-**src/app/(site):**
-- Purpose: Public portfolio site routes accessible to all users
-- Contains: Site-specific layout and pages
-- Key files: `layout.tsx` (sidebar layout), `page.tsx` (home page with layout display)
+**`src/app/(editor)/`:**
+- Purpose: Protected editor interface for authenticated users
+- Contains: Editor pages, login redirect
+- Key files: `editor/page.tsx` (main editor), `layout.tsx` (editor wrapper)
+- Route pattern: `/editor/*` (protected by middleware)
 
-**src/app/(editor):**
-- Purpose: Private editor interface routes for content creation
-- Contains: Editor-specific layout and editor page
-- Key files: `editor/page.tsx` (main editor), `login/page.tsx` (authentication placeholder)
-
-**src/app/api:**
-- Purpose: Backend API endpoints for data operations
-- Contains: Route handlers for layout management and file uploads
+**`src/app/api/`:**
+- Purpose: Backend API endpoints
+- Contains: Route handlers for REST operations
 - Key files: `layouts/[slug]/route.ts` (CRUD), `upload/route.ts` (signature generation)
 
-**src/components:**
-- Purpose: Reusable UI components shared across site and editor
-- Contains: Sidebar, navigation, modals, theme toggle
-- Key files: `SidebarContent.tsx` (navigation), `Modal.tsx` (modal base component)
+**`src/components/`:**
+- Purpose: Reusable UI components shared across site
+- Contains: Page sections, modals, navigation, theme toggle
+- Used by: Both site and editor layouts
 
-**src/core:**
-- Purpose: Core business logic separated from UI presentation
-- Contains: Rendering engine, editor state, layout algorithms
+**`src/core/editor/`:**
+- Purpose: Editor-specific logic and UI
+- Contains: State management, canvas rendering, properties panel, toolbar
+- Key abstractions: `EditorCanvas` (drag-drop), `store.ts` (Zustand), `SortableItem` (dnd-kit wrapper)
+- Not reused in site pages
 
-**src/core/renderer:**
-- Purpose: Convert layout data structures to visual components
-- Contains: Renderer component, type definitions, sample data
-- Key files: `types.ts` (Zod schemas, TypeScript types), `Renderer.tsx` (rendering logic)
+**`src/core/renderer/`:**
+- Purpose: Layout rendering engine (used in both view and edit modes)
+- Contains: Generic `Renderer` component, type definitions, sample data
+- Key abstraction: Zod schemas for type safety
+- Reused in: Site pages (view mode), editor canvas (edit mode)
 
-**src/core/editor:**
-- Purpose: Editor-specific components and state management
-- Contains: Zustand store, editor canvas, toolbar, properties panel
-- Key files: `store.ts` (state), `EditorCanvas.tsx` (draggable canvas)
+**`src/core/layout-engine/`:**
+- Purpose: Calculate masonry grid layout
+- Contains: Column-based height calculation
+- Note: Currently used as reference; actual layout via CSS masonry classes
 
-**src/core/layout-engine:**
-- Purpose: Layout calculation algorithms (currently unused masonry positioning)
-- Contains: Grid position calculations
-- Key files: `index.ts` (buildMasonryPositions function)
+**`src/lib/auth/`:**
+- Purpose: Supabase authentication helpers
+- Contains: Server-side and browser-side client factories
+- Server: `createSupabaseServerClient()` for server components/middleware
+- Browser: `createBrowserClient()` for client components
 
-**src/lib:**
-- Purpose: Utility functions and external service integrations
-- Contains: Database, authentication, file storage, CDN loading
+**`src/lib/db/`:**
+- Purpose: Database abstraction and queries
+- Contains: Drizzle connection, CRUD operations, schema definitions
+- Key patterns: Null check for missing `DATABASE_URL`, fallback to sample data
 
-**src/lib/db:**
-- Purpose: Database access layer using Drizzle ORM
-- Contains: Connection setup, schema definition, query functions
-- Key files: `client.ts` (connection), `schema.ts` (tables), `layouts.ts` (queries)
+**`src/lib/storage/`:**
+- Purpose: Image optimization and CDN integration
+- Contains: Next.js image loader for CDN rewriting
+- Supports: Cloudinary URLs, internal CDN via `NEXT_PUBLIC_CDN_URL`
 
-**src/lib/auth:**
-- Purpose: Supabase authentication setup (placeholder for future use)
-- Contains: Server-side and client-side Supabase client factories
-- Key files: `server.ts` (SSR), `browser.ts` (CSR)
-
-**src/lib/storage:**
-- Purpose: File storage and CDN integration
-- Contains: Image loader for Next.js Image component
-- Key files: `image-loader.ts` (custom loader)
-
-**drizzle:**
-- Purpose: Database migration artifacts generated by Drizzle Kit
-- Contains: Migration snapshots and metadata
-- Generated: Yes
-- Committed: Yes
-
-**public:**
-- Purpose: Static assets served directly by Next.js
-- Contains: Images, icons, fonts
-- Key files: `avatar.jpg` (profile image)
-
-**.planning:**
-- Purpose: GSD (Getting Stuff Done) planning documents and configuration
-- Contains: Architecture analysis, task planning, configuration
-- Generated: Yes (by GSD commands)
-- Committed: Yes
+**`src/lib/cloudinary.ts`:**
+- Purpose: Cloudinary image service integration
+- Contains: Upload signature generation, image deletion
+- Credentials: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
 
 ## Key File Locations
 
 **Entry Points:**
-- `src/app/layout.tsx`: Root layout for all pages (fonts, metadata, HTML setup)
-- `src/app/(site)/page.tsx`: Public home page route
-- `src/app/(editor)/editor/page.tsx`: Editor interface route
-- `next.config.ts`: Next.js configuration for React Compiler and custom image loader
+- `src/app/layout.tsx`: Root HTML document setup
+- `src/app/(site)/page.tsx`: Public home page
+- `src/app/(editor)/editor/page.tsx`: Editor UI entry point
+- `middleware.ts`: Auth guard for editor routes
 
 **Configuration:**
-- `tsconfig.json`: TypeScript compilation settings with path alias `@/*` → `./src/*`
-- `next.config.ts`: Custom image loader configuration, React Compiler enablement
-- `drizzle.config.ts`: Database migration configuration
-- `middleware.ts`: Next.js middleware entry point (currently unused)
+- `tsconfig.json`: Path alias `@/*` → `src/*`
+- `next.config.ts`: Next.js settings
+- `tailwind.config.js`: Tailwind CSS customization
+- `drizzle.config.ts`: Database migration config
+- `package.json`: Dependencies and scripts
 
 **Core Logic:**
-- `src/core/editor/store.ts`: Complete editor state management with Zustand
-- `src/core/renderer/types.ts`: Zod schemas for all layout item types and validation
-- `src/core/renderer/Renderer.tsx`: Polymorphic rendering function supporting view/edit modes
-- `src/lib/db/layouts.ts`: Database query functions with fallback to sample layout
+- `src/core/editor/store.ts`: Zustand editor state machine
+- `src/core/renderer/types.ts`: Zod layout schemas (single source of truth)
+- `src/lib/db/layouts.ts`: Database access functions
+- `src/app/api/layouts/[slug]/route.ts`: Layout persistence API
 
 **Testing:**
-- No test files present in codebase
-
-**Database:**
-- `src/lib/db/schema.ts`: Single table `layouts` with JSONB data column
-- `drizzle/meta/_journal.json`: Migration journal
+- No test files present (not yet configured)
 
 ## Naming Conventions
 
 **Files:**
-- React components: PascalCase, single responsibility (e.g., `EditorCanvas.tsx`)
-- Pages: `page.tsx` (Next.js convention)
-- API routes: `route.ts` (Next.js convention)
-- Utility modules: camelCase, descriptive (e.g., `image-loader.ts`, `cloudinary.ts`)
-- Schema/type files: `types.ts`, `schema.ts`
+- `*.tsx`: React components (pages, layout, UI)
+- `*.ts`: Utilities, types, business logic
+- `route.ts`: API route handlers (Next.js pattern)
+- `store.ts`: Zustand state stores
+- `types.ts`: Type definitions and schemas
+- `layout.tsx`: Layout wrapper components (Next.js App Router)
 
 **Directories:**
-- Next.js route groups: Parentheses wrapped (e.g., `(site)`, `(editor)`)
-- Feature directories: lowercase (e.g., `renderer`, `editor`, `layout-engine`)
-- Utility directories: lowercase plural when containing multiple modules (e.g., `components`, `lib`)
+- PascalCase for feature folders: `(site)`, `(editor)`, `EditorCanvas.tsx` folder NOT used
+- kebab-case not used; feature-based organization preferred
+- Grouped by concern: `lib/auth/`, `lib/db/`, `core/editor/`, `core/renderer/`
+
+**Exports:**
+- Named exports for utilities: `export const getDb = () => ...`
+- Default exports for page/layout components: `export default function HomePage() {}`
+- Barrel files NOT used; direct imports preferred: `import { useEditorStore } from "@/core/editor/store.ts"`
 
 **Components:**
-- Exported as named exports: `export const ComponentName`
-- Hook names: `use` prefix (e.g., `useEditorStore`)
-- Props interfaces: `{ComponentName}Props` (not used; inline types preferred)
-
-**Functions:**
-- PascalCase for React components
-- camelCase for utility functions (e.g., `buildMasonryPositions`, `getLayoutBySlug`, `generateSignature`)
-- Async functions for API/database operations
-
-**Types:**
-- Type names: PascalCase (e.g., `Layout`, `LayoutItem`)
-- Union types: Zod `.union()` with discriminated literals
-- Generic parameters: Single letter or descriptive (e.g., `T`, `Props`)
+- PascalCase: `EditorCanvas.tsx`, `PropertiesPanel.tsx`
+- Export const: `export const EditorCanvas = () => ...`
+- Props interface inline or exported separately
 
 ## Where to Add New Code
 
-**New Feature (e.g., new layout item type):**
-- Add schema variant to: `src/core/renderer/types.ts` (new Zod schema)
-- Add rendering logic to: `src/core/renderer/Renderer.tsx` (new case in `renderItem()`)
-- Add item creation to: `src/core/editor/store.ts` (new branch in `addItem()`)
-- Add properties UI to: `src/core/editor/PropertiesPanel.tsx` (new conditional block)
-- Tests: None (no test infrastructure exists)
+**New Feature (e.g., Gallery view):**
+- Primary code: `src/app/(site)/gallery/page.tsx` (page) + `src/components/GalleryView.tsx` (component)
+- Shared logic: `src/lib/gallery.ts` if database queries needed
+- API: `src/app/api/galleries/[slug]/route.ts` if backend needed
+- Tests: Create `*.test.tsx` or `*.test.ts` files co-located
 
-**New Page/Route:**
-- Server-rendered page: Create file in `src/app/` with appropriate route group
-- API endpoint: Create file in `src/app/api/` with `route.ts` name
-- Both should follow Next.js conventions with proper segment organization
+**New Component/Module (e.g., RichTextEditor):**
+- Implementation: `src/components/RichTextEditor.tsx` or `src/core/editor/RichTextEditor.tsx`
+- Types: Define inline or in component file
+- Styling: Use Tailwind classes inline (no separate CSS files)
 
-**New Component (site-wide):**
-- Shared reusable components: `src/components/{ComponentName}.tsx`
-- Editor-only components: `src/core/editor/{ComponentName}.tsx`
-- Renderer-only components: Part of `src/core/renderer/Renderer.tsx`
+**Utilities:**
+- Shared helpers: `src/lib/utils.ts` (create if doesn't exist)
+- Service integrations: `src/lib/[service-name].ts` (e.g., `cloudinary.ts`, `auth/`)
+- Database queries: `src/lib/db/[table-name].ts` (e.g., `layouts.ts`)
 
-**Utilities/Helpers:**
-- Database helpers: `src/lib/db/{module}.ts`
-- Auth helpers: `src/lib/auth/{module}.ts`
-- External service integration: `src/lib/{service-name}.ts` (e.g., `cloudinary.ts`)
-- General utilities: Create new file in appropriate `src/lib/` subdirectory
-
-**New Database Table:**
-- Define in: `src/lib/db/schema.ts` (add to exports)
-- Create query file: `src/lib/db/{entity}.ts` (e.g., `users.ts`)
-- Run migration: `drizzle-kit push` (updates `drizzle/meta/`)
+**API Endpoints:**
+- Add to `src/app/api/[resource]/[slug]/route.ts`
+- Pattern: `[resource]` = plural resource name, `[slug]` = dynamic segment
+- Import handlers from `src/lib/db/` or `src/lib/[service].ts`
 
 ## Special Directories
 
-**node_modules:**
-- Purpose: Installed dependencies from npm
-- Generated: Yes
-- Committed: No (excluded via .gitignore)
+**`drizzle/`:**
+- Purpose: Database migrations
+- Generated: Yes (via `drizzle-kit`)
+- Committed: Yes
+- How to update: Modify `src/lib/db/schema.ts`, then run `drizzle-kit migrate`
 
-**.next:**
-- Purpose: Next.js build output and type definitions
-- Generated: Yes (by `npm run build` or `npm run dev`)
-- Committed: No
+**`public/`:**
+- Purpose: Static assets (images, fonts)
+- Generated: No
+- Committed: Yes
+- Access: `/avatar.jpg` (becomes `public/avatar.jpg`)
 
-**drizzle:**
-- Purpose: Database migrations and metadata
-- Generated: Partially (meta files auto-generated, but migrations versioned)
-- Committed: Yes (preserves database schema history)
+**`.next/`:**
+- Purpose: Next.js build output
+- Generated: Yes (via `npm run build`)
+- Committed: No (in `.gitignore`)
 
-**.planning:**
-- Purpose: GSD orchestrator output
-- Generated: Yes (by `/gsd:*` commands)
-- Committed: Yes (planning documents are version-controlled)
+**`.planning/`:**
+- Purpose: Project planning and analysis documents
+- Generated: Semi (by GSD tools)
+- Committed: Yes
+- Contents: Roadmaps, requirements, codebase analysis
+
+**`node_modules/`:**
+- Purpose: Installed dependencies
+- Generated: Yes (via `npm install`)
+- Committed: No (in `.gitignore`)
+
+## Code Organization Patterns
+
+**Server Components vs Client Components:**
+- Server components by default in Next.js 13+
+- Use `"use client"` directive only in interactive components
+- Examples:
+  - Server: `src/app/(site)/page.tsx` (calls `getLayoutBySlug()`)
+  - Client: `src/core/editor/EditorCanvas.tsx` (uses Zustand, dnd-kit)
+
+**Module Boundaries:**
+- `src/core/editor/*` = Editor-only, not used in site
+- `src/core/renderer/*` = Shared between site and editor
+- `src/components/*` = Shared UI across all pages
+- `src/lib/*` = Pure utilities, safe to import anywhere
+
+**Import Organization:**
+- Path alias `@/` for internal imports: `import { Layout } from "@/core/renderer/types"`
+- External libraries first: `import React from "react"`
+- Internal utilities second: `import { useEditorStore } from "@/core/editor/store"`
+- No circular dependencies enforced by file structure
 
 ---
 
-*Structure analysis: 2026-02-12*
+*Structure analysis: 2026-03-10*

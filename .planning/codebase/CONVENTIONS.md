@@ -1,205 +1,192 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-02-12
+**Analysis Date:** 2026-03-10
 
 ## Naming Patterns
 
 **Files:**
-- React Components: PascalCase (e.g., `ContactForm.tsx`, `ThemeToggle.tsx`)
-- Server utilities: camelCase (e.g., `client.ts`, `layouts.ts`, `schema.ts`)
-- Stores: camelCase with "store" suffix (e.g., `store.ts` for Zustand)
-- API routes: Follow Next.js convention (e.g., `route.ts` in `[slug]/` directories)
-- Configuration: lowercase with dots (e.g., `drizzle.config.ts`, `next.config.ts`)
+- React components (`.tsx`) use PascalCase: `ContactForm.tsx`, `Modal.tsx`, `ThemeToggle.tsx`
+- Utility/logic files (`.ts`) use camelCase: `cloudinary.ts`, `schema.ts`, `client.ts`
+- Page routes use lowercase: `page.tsx`, `route.ts`
+- Store files: `store.ts` for Zustand state management
 
 **Functions:**
-- camelCase for all functions: `getDb()`, `getLayoutBySlug()`, `upsertLayout()`, `renderItem()`
-- Event handlers: camelCase with "handle" prefix in components: `handleSubmit()`, `handleDragStart()`, `handleDragEnd()`, `onClick()`
-- Async functions: camelCase with `async` keyword: `async getLayoutBySlug()`, `async upsertLayout()`
-- Exported store functions: camelCase: `useEditorStore()`
+- Components are PascalCase: `export function ContactForm()`, `export const Toolbar = ()`
+- Hooks are camelCase with `use` prefix: `useEditorStore()`, `useState()`, `useEffect()`
+- Utility/API functions are camelCase: `getLayoutBySlug()`, `upsertLayout()`, `generateSignature()`, `deleteImage()`
+- Event handlers are camelCase with `handle` prefix: `handleSubmit()`, `handleImageUpload()`
 
 **Variables:**
-- camelCase for local variables: `layout`, `selectedId`, `activeId`, `newTheme`, `theme`
-- Const declarations for state/store accessors: `const { layout, moveItem } = useEditorStore()`
-- State setters: camelCase with "set" prefix in components: `setLoading()`, `setSuccess()`, `setTheme()`
+- State variables use camelCase: `selectedId`, `isSaving`, `hasUnsavedChanges`, `loading`, `success`
+- Constants use camelCase or UPPER_SNAKE_CASE depending on scope
+- Loop variables: `item`, `i`, `id` (short, conventional names)
 
 **Types:**
-- PascalCase for interfaces and type definitions: `EditorState`, `RendererProps`, `Layout`, `LayoutItem`, `LayoutImageSchema`
-- Type inference from Zod: `type Layout = z.infer<typeof layoutSchema>`
-- Generic type parameters: PascalCase single letters acceptable: `T`
-
-**Constants:**
-- UPPER_SNAKE_CASE for configuration constants
-- camelCase for computed/derived constants: `storageKey = "theme-preference"`
-
-**Database:**
-- Table names: lowercase plural (e.g., `layouts`)
-- Column names: camelCase (e.g., `updatedAt`, `publicId`)
-- Schema exports: lowercase (e.g., `layouts` table)
+- TypeScript interfaces use PascalCase: `interface EditorState`, `interface ModalProps`, `interface LayoutProps`
+- Zod schemas use camelCase with `Schema` suffix: `layoutSchema`, `layoutItemSchema`, `layoutImageSchema`
+- Type inference from Zod: `export type Layout = z.infer<typeof layoutSchema>`
 
 ## Code Style
 
 **Formatting:**
-- No explicit Prettier config found; uses Next.js defaults
-- 2-space indentation (inferred from codebase)
-- Semicolons required at end of statements
-- Single quotes not observed; uses double quotes consistently
-- Line length: No strict limit observed; varies but averages 80-100 characters
+- ESLint 9 with Next.js recommended config (`eslint-config-next`)
+- No explicit Prettier config found - uses ESLint formatting
+- Indent: 2 spaces (TypeScript default)
+- Line length: No strict limit observed, pragmatic breaking
 
 **Linting:**
-- ESLint v9 configured via `eslint.config.mjs` (flat config)
-- Uses `eslint-config-next` with core-web-vitals and TypeScript support
-- Pragmatic eslint-disable comments for specific violations: `// eslint-disable-next-line @typescript-eslint/no-explicit-any`
-- Ignores: `.next/**`, `out/**`, `build/**`, `next-env.d.ts`
+- Config: `eslint.config.mjs` (flat config format)
+- Extends: `eslint-config-next/core-web-vitals` and `eslint-config-next/typescript`
+- Disables default ignores: `.next/`, `out/`, `build/`, `next-env.d.ts`
+- Run with: `npm run lint`
 
-**React/JSX:**
-- No format restrictions observed; components use standard JSX with className
-- Event handlers: Use arrow functions passed to JSX attributes
-- Fragment shorthand: Not commonly used; explicit wrapper divs used instead
-- Component exports: Named exports preferred: `export const ContactForm = ()`
-- Component functions: PascalCase arrow functions or regular functions
+**Typewriter Settings:**
+- Strict mode enabled
+- Target: ES2017
+- Module: esnext
+- JSX: react-jsx
+- Path alias: `@/*` maps to `./src/*`
 
 ## Import Organization
 
 **Order:**
-1. External library imports (React, Next.js, UI libraries): `import { useState } from "react"`, `import { create } from "zustand"`
-2. Next.js specific imports: `import { NextRequest, NextResponse } from "next/server"`
-3. Internal absolute imports using `@/` alias: `import { useEditorStore } from "@/core/editor/store"`
-4. Internal relative imports (rarely used): Prefer absolute `@/` imports
-5. Type imports: Mixed with regular imports; no segregation: `import type { Layout } from "@/core/renderer/types"`
+1. External libraries (React, Next.js, third-party packages)
+2. Internal imports using path alias `@/`
+3. Types/interfaces from `@/` imports
 
-**Path Aliases:**
-- `@/*` → `./src/*` (configured in `tsconfig.json`)
-- All imports should use `@/` prefix for files within `src/` directory
-- No other aliases defined
-
-**Import Examples from Codebase:**
+**Example from `src/core/editor/store.ts`:**
 ```typescript
-// External libraries
 import { create } from "zustand";
 import { nanoid } from "nanoid";
 import type { Layout, LayoutItem } from "@/core/renderer/types";
 import { arrayMove } from "@dnd-kit/sortable";
-
-// Next.js
-import { NextRequest, NextResponse } from "next/server";
-
-// Internal absolute imports
-import { getDb } from "./client";
-import { layouts } from "./schema";
-import { useEditorStore } from "./store";
-
-// Type imports in same statement
-import type { Layout } from "@/core/renderer/types";
 ```
 
-**Barrel Files:**
-- Not extensively used; direct imports from source files preferred
-- Example: `src/core/renderer/types.ts` exports types directly without re-export barrel
+**Example from `src/core/renderer/Renderer.tsx`:**
+```typescript
+import Image from "next/image";
+import { motion } from "framer-motion";
+import type { Layout, LayoutItem } from "./types";
+```
+
+**Path Aliases:**
+- `@/` always refers to `./src/`
+- Relative imports used when within the same directory level
+- Absolute path imports preferred for cross-directory navigation
 
 ## Error Handling
 
 **Patterns:**
-- Try-catch blocks used around async operations: database calls, API requests, image uploads
-- Error logging: `console.error()` for errors, `console.warn()` for recoverable failures
-- Error types checked with `instanceof` before accessing error properties: `if (error instanceof z.ZodError)`
-- Fallback values: Database errors fall back to `sampleLayout`; upload errors use `alert()` for user feedback
-- API errors: Wrapped in NextResponse with appropriate HTTP status codes (400, 500)
-- Promise.all() with error handling for parallel operations (e.g., image deletion):
-  ```typescript
-  await Promise.all(
-    removedImages.map(async (item) => {
-      try {
-        // operation
-      } catch (err) {
-        console.error(`Failed to...`, err);
-        // Continue even if fails
-      }
-    })
-  );
-  ```
 
-**Error Response Pattern (API Routes):**
-- Validation errors (400): `NextResponse.json({ error: errors }, { status: 400 })`
-- Server errors (500): `NextResponse.json({ error: "Internal Server Error" }, { status: 500 })`
-- Type-specific errors checked: Zod parsing errors detected and returned as validation errors
+1. **Try-Catch Blocks with Console Logging:**
+   - Found in async functions and API routes
+   - `console.error()` for errors: `console.error("Error saving layout:", error)`
+   - `console.warn()` for degraded service: `console.warn("Database error, falling back to sample layout:", error)`
+
+2. **Silent Failures with Fallbacks:**
+   - Database operations fall back to `sampleLayout` if database unavailable
+   - Image deletion in Cloudinary continues even if delete fails: `catch (err) { console.error(...); }`
+   - File: `src/lib/db/layouts.ts`
+
+3. **HTTP Error Handling in API Routes:**
+   - Check response status: `if (!response.ok) { throw new Error(...) }`
+   - Return NextResponse.json with status codes: `NextResponse.json({error: "..."}, {status: 400})`
+   - File: `src/app/api/layouts/[slug]/route.ts`
+
+4. **Zod Validation Errors:**
+   - Catch ZodError separately: `if (error instanceof z.ZodError)`
+   - Return validation details to client
+   - File: `src/app/api/layouts/[slug]/route.ts` line 60-65
+
+5. **UI Error Handling:**
+   - Show user-friendly alerts: `alert("Error al guardar los cambios")`
+   - Log detailed errors to console for debugging
+   - File: `src/core/editor/store.ts` line 141-142
 
 ## Logging
 
-**Framework:** `console` API only
-- `console.error()` for error conditions that require attention
-- `console.warn()` for recoverable issues or deprecation
-- `console.log()` not observed in committed code
-- No structured logging or log levels configured
+**Framework:** `console` object (native)
 
 **Patterns:**
-- Error context included: `console.error("Error saving layout:", error)`
-- Image operations logged: `console.log('Deleting image ${item.publicId} from Cloudinary')`
-- Warnings include fallback context: `console.warn("Database error, falling back to sample layout:", error)`
+- `console.log()` for informational logs: `console.log("Deleting image...")`
+- `console.error()` for error conditions: `console.error("Error:", error)`
+- `console.warn()` for warnings/degradation: `console.warn("Database error...")`
+- Logs include context: `console.error("Error saving layout:", error)`
+
+**Usage:**
+- Async/await error boundaries: all try-catch blocks log errors
+- API route logging: request success/failure states
+- Client-side state updates: minimal logging, mostly errors
 
 ## Comments
 
 **When to Comment:**
-- Algorithm steps in complex operations: `// 1. Get existing layout`, `// 2. Identify removed images`, `// 3. Delete from Cloudinary`
-- Placeholder intentions: `// Placeholder` for temporary image URLs
-- Known limitations: `// In a real app, we would fetch the layout from the API here`
-- Temporary workarounds: `// Continue even if delete fails`
-- Linting overrides with context: `// eslint-disable-next-line @typescript-eslint/no-explicit-any`
+- Rarely used in this codebase - code is generally self-documenting
+- Comments appear only for non-obvious logic or API requirements
+- Example: `// I need an API endpoint for getting the upload URL.` (PropertiesPanel.tsx line 4)
 
 **JSDoc/TSDoc:**
-- Not extensively used in this codebase
-- Type annotations preferred over JSDoc for documentation
-- Interface comments not observed
-
-**Comment Style:**
-- Single-line comments: `// Comment`
-- No multi-line block comments observed
-- Inline comments avoided; prefer named variables for clarity
+- Not used in source files
+- Type annotations preferred over JSDoc comments
 
 ## Function Design
 
-**Size:**
-- Functions are kept relatively small and focused
-- Store actions in Zustand: 5-20 lines typically
-- API route handlers: 20-40 lines with error handling
-- Helper functions: 5-15 lines
+**Size:** Functions average 20-100 lines, typically smaller
+- Largest: `PropertiesPanel` (190 lines) - full component with nested logic
+- Typical utility function: 5-30 lines
+- Store actions: 10-20 lines with internal state management
 
 **Parameters:**
-- Destructuring used for object parameters: `{ params }: { params: Promise<{ slug: string }> }`
-- Type annotations required for all parameters in TS files
-- Callback functions use explicit types: `onSelect?: (id: string) => void`
+- Zustand store actions: single parameter or destructured object
+- React components: destructured props with TypeScript interface
+- API routes: `request` and `{ params }` with type `Promise<{...}>`
+- Example: `async (item: LayoutItem) => { ... }`
 
 **Return Values:**
-- Explicit return type annotations required
-- Async functions return `Promise<Type>`
-- Optional returns indicated with `| null` or `| undefined`
-- Early returns for guard clauses: `if (!layout) return state;`
-
-**Zustand Store Pattern:**
-- State defined as interface
-- Actions defined within interface before store creation
-- Store created with factory function: `create<EditorState>((set, get) => ({ ... }))`
-- Actions use `set()` for immutable updates
-- Complex updates use spread operator: `{ ...item, ...updates }`
+- React components: JSX.Element
+- Async functions: Promise of expected type
+- Store actions: return result of `set()` or mutation object
+- Fallible operations return nullable types or throw errors
 
 ## Module Design
 
 **Exports:**
-- Named exports preferred: `export const getLayoutBySlug = (...)`
-- Default exports rare; not observed in current codebase
-- Re-exports not commonly used; direct imports preferred
-- Function exports consistent with their usage: server functions exported as-is, React components as named exports
+- Named exports preferred: `export const functionName = () => {}`
+- Default exports for React pages/components: `export default function HomePage()`
+- Type-only exports: `export type Layout = z.infer<typeof layoutSchema>`
 
 **Barrel Files:**
-- Not commonly used; direct imports preferred
-- `src/core/renderer/types.ts` exports multiple related types for consumption elsewhere
-- No index.ts barrel files observed in main source
+- Not used in this codebase - imports are direct to files
+- Example: import from `@/core/editor/store.ts` not `@/core/editor/`
 
 **File Organization:**
-- Server-only utilities in `/lib/` directories with logical grouping: `/db/`, `/auth/`, `/storage/`
-- Client components marked with `"use client"` directive at top
-- Logic files organized by feature: `/core/editor/`, `/core/renderer/`
-- Shared components in `/components/`
+- One primary export per file (component + helpers together)
+- Schema/type definitions in separate `.ts` files
+- Store definitions in `store.ts` with all actions included
+
+## Tailwind CSS
+
+**Usage:**
+- Inline utility classes on all elements
+- Dark mode support with `dark:` prefix: `bg-white dark:bg-black`
+- Spacing: `gap-2`, `gap-4`, `gap-6`, `p-2`, `p-4`, `p-6`
+- Responsive: `max-w-sm`, `w-full`, `h-auto`
+- Custom styling via CSS variables in `globals.css` (open-props easings)
+
+**Patterns:**
+- Conditional classes with template literals: `` `${base} ${condition ? 'active' : 'inactive'}` ``
+- Motion/animation integration with Framer Motion: motion-enabled divs with animations
+
+## TypeScript
+
+**Strict Mode:** Enabled (`"strict": true`)
+
+**Type Usage:**
+- Interfaces for component props: `interface ModalProps { ... }`
+- Type inference from Zod: `type Layout = z.infer<typeof layoutSchema>`
+- Union types for discriminated unions: `z.union([imageSchema, textSchema, spacerSchema])`
+- Generic types: `create<EditorState>(...)`, `z.object<{...}>()`
 
 ---
 
-*Convention analysis: 2026-02-12*
+*Convention analysis: 2026-03-10*

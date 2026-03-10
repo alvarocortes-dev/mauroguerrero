@@ -1,204 +1,230 @@
 # Architecture
 
-**Analysis Date:** 2026-02-12
+**Analysis Date:** 2026-03-10
 
 ## Pattern Overview
 
-**Overall:** Next.js 16 Full-Stack Web Application with Client-Side Editor Interface
+**Overall:** Next.js full-stack application with client-side state management and server-side data persistence. The app follows a layered architecture separating UI components, business logic (editor state), data access, and API routes.
 
 **Key Characteristics:**
-- Dual-application pattern: Public portfolio site + Private editor interface in same codebase
-- Client-server separation using Next.js route groups `(site)` and `(editor)`
-- State management via Zustand for editor operations
-- REST API layer for layout persistence and file uploads
-- Real-time drag-and-drop UI with dnd-kit and Framer Motion animations
-- PostgreSQL database with Drizzle ORM for layout storage
-- Cloudinary integration for image hosting and management
+- Next.js App Router with route groups for site and editor contexts
+- Client-side state management via Zustand for editor operations
+- Server-side rendering for public portfolio pages
+- API routes for backend operations (layout persistence, image uploads)
+- Clear separation between rendering logic and editing logic
+- Zod schema validation for type-safe data structures
 
 ## Layers
 
-**Presentation Layer (Client):**
-- Purpose: Render UI components, handle user interactions, drag-and-drop operations
-- Location: `src/app/(site)`, `src/app/(editor)`, `src/components`, `src/core/editor`, `src/core/renderer`
-- Contains: React components, styled with Tailwind CSS, animations with Framer Motion
-- Depends on: Zustand store, API routes, next/image for image optimization
-- Used by: Browser (client-side rendering and SSR)
+**Presentation Layer (Components):**
+- Purpose: Render UI and handle user interactions
+- Location: `src/components/`, `src/core/editor/`, `src/core/renderer/`
+- Contains: React components, page templates, UI elements
+- Depends on: Zustand store, core utilities, external libraries (framer-motion, dnd-kit)
+- Used by: Next.js page routes
 
-**Business Logic Layer (State Management):**
-- Purpose: Manage editor state, layout data, UI selections, save operations
+**Business Logic Layer (Editor State):**
+- Purpose: Manage editor state, item operations, and save coordination
 - Location: `src/core/editor/store.ts`
-- Contains: Zustand store with actions for item manipulation (add, remove, update, move)
-- Depends on: API routes for persistence, type definitions from renderer
-- Used by: Editor components (EditorCanvas, Toolbar, PropertiesPanel)
+- Contains: Zustand store with actions for layout manipulation (add, remove, move items)
+- Depends on: Layout types, fetch API for persistence
+- Used by: Editor components (`EditorCanvas`, `Toolbar`, `PropertiesPanel`)
 
-**Renderer Layer:**
-- Purpose: Convert layout data structures into visual components with mode-specific rendering
-- Location: `src/core/renderer/Renderer.tsx`, `src/core/renderer/types.ts`
-- Contains: Generic `renderItem()` function supporting "view" and "edit" modes, Zod schema validation
-- Depends on: Framer Motion for animations, Next Image, type system
-- Used by: Both site and editor (site for display, editor for canvas)
+**Data Access Layer (Database):**
+- Purpose: Abstract database operations and fallback to sample data
+- Location: `src/lib/db/`
+- Contains: Database client initialization, layout queries/mutations, schema definitions
+- Depends on: Drizzle ORM, PostgreSQL connection
+- Used by: API routes, server components
 
-**Layout Engine Layer:**
+**API Layer (Route Handlers):**
+- Purpose: Expose HTTP endpoints for client operations and external integrations
+- Location: `src/app/api/`
+- Contains: GET/PUT handlers for layouts, signature generation for image uploads
+- Depends on: Database layer, Cloudinary integration, authentication
+- Used by: Client-side fetch calls, image upload workflow
+
+**Infrastructure Layer (Utilities):**
+- Purpose: Encapsulate external service integrations and cross-cutting concerns
+- Location: `src/lib/auth/`, `src/lib/cloudinary.ts`, `src/lib/storage/`
+- Contains: Authentication helpers, image CDN configuration, service integration
+- Depends on: External SDKs (Supabase, Cloudinary)
+- Used by: API routes, middleware, components
+
+**Rendering Engine:**
+- Purpose: Decouple layout data structure from visual representation
+- Location: `src/core/renderer/`
+- Contains: Generic item renderer, layout type definitions, sample layouts
+- Depends on: Next.js Image, Framer Motion
+- Used by: Both site pages (view mode) and editor canvas (edit mode)
+
+**Layout Engine:**
 - Purpose: Calculate masonry grid positions for responsive layout
 - Location: `src/core/layout-engine/index.ts`
-- Contains: `buildMasonryPositions()` algorithm for multi-column layout
-- Depends on: LayoutItem types
-- Used by: Renderer components (CSS handles actual positioning)
-
-**API Layer:**
-- Purpose: Handle HTTP requests for layout CRUD and file upload coordination
-- Location: `src/app/api/layouts/[slug]/route.ts`, `src/app/api/upload/route.ts`
-- Contains: GET/PUT endpoints for layouts, POST for upload signatures
-- Depends on: Database layer, Cloudinary utilities, Zod validation
-- Used by: Client components via fetch calls
-
-**Data Access Layer:**
-- Purpose: Database operations and external service integrations
-- Location: `src/lib/db/client.ts`, `src/lib/db/layouts.ts`, `src/lib/db/schema.ts`, `src/lib/cloudinary.ts`
-- Contains: Drizzle ORM setup, SQL queries, Cloudinary SDK configuration
-- Depends on: PostgreSQL, Cloudinary API, environment variables
-- Used by: API routes, editor components
-
-**Authentication Layer:**
-- Purpose: Supabase client initialization for future auth integration
-- Location: `src/lib/auth/server.ts`, `src/lib/auth/browser.ts`
-- Contains: SSR-safe Supabase client factories
-- Depends on: Supabase SDK, cookies
-- Used by: Currently not actively used (placeholder for future implementation)
+- Contains: Column-based height calculation for masonry algorithm
+- Depends on: Layout item types
+- Used by: CSS masonry classes (not directly invoked)
 
 ## Data Flow
 
-**View Layout (Public Site):**
+**Portfolio View (Public):**
 
-1. User navigates to `/` (home page via `src/app/(site)/page.tsx`)
-2. Server-side: `getLayoutBySlug("home")` queries database or returns sample layout
-3. Server passes layout data to Renderer component
-4. Renderer converts Layout object to visual DOM with mode="view"
-5. Browser receives pre-rendered HTML with images (optimized via next/image)
+1. User visits public site (e.g., `/`)
+2. `src/app/(site)/page.tsx` (server component) calls `getLayoutBySlug("home")`
+3. `src/lib/db/layouts.ts` queries PostgreSQL via Drizzle or returns sample layout
+4. `Renderer` component receives layout object, renders items in masonry grid with Framer Motion
+5. Images loaded from Cloudinary via secure URL stored in `Layout.items[].src`
 
-**Edit Layout (Editor Interface):**
+**Editor View (Protected):**
 
-1. User navigates to `/editor` (editor page via `src/app/(editor)/editor/page.tsx`)
-2. Client-side: `useEffect` fetches `/api/layouts/home`
-3. API returns layout JSON, client initializes Zustand store
-4. EditorCanvas renders items via SortableContext (dnd-kit)
-5. User drags, selects, or modifies items
-6. Changes update Zustand state immediately (optimistic updates)
-7. User clicks "Guardar" button in Toolbar
-8. `saveLayout()` POSTs to `/api/layouts/{slug}` with full layout
-9. API validates with Zod, upserts to database, syncs Cloudinary deletions
-10. Client marks `hasUnsavedChanges` as false
+1. User navigates to `/editor` → caught by middleware (`middleware.ts`)
+2. Middleware checks Supabase auth, redirects to `/login` if unauthenticated
+3. `src/app/(editor)/editor/page.tsx` (client component) mounts
+4. Fetches current layout from `/api/layouts/[slug]` on mount
+5. Initializes Zustand store with layout data
+6. User interactions trigger store actions (add, remove, move, update items)
+7. Store tracks `hasUnsavedChanges` state
+8. User clicks "Guardar" → triggers `saveLayout()` which:
+   - PUTs to `/api/layouts/[slug]` with updated layout
+   - API handler identifies removed images
+   - Deletes removed images from Cloudinary via `deleteImage()`
+   - Upserts layout to PostgreSQL
+   - Sets `hasUnsavedChanges` to false
 
-**Image Upload Flow:**
+**Image Upload Workflow:**
 
-1. User selects image in PropertiesPanel
-2. Client POSTs to `/api/upload` requesting signature with folder parameter
-3. API calls `generateSignature()` from Cloudinary utilities
-4. API returns timestamp, signature, credentials
-5. Client POSTs multipart form to Cloudinary directly (`https://api.cloudinary.com/v1_1/.../upload`)
-6. Cloudinary returns secure_url and public_id
-7. Client updates layout item with image URL and publicId via store
-8. On next save, publicId is stored in database for cleanup tracking
+1. User selects file in Properties Panel
+2. `handleImageUpload()` POSTs to `/api/upload` with folder name
+3. Backend calls `generateSignature()` using Cloudinary credentials
+4. Returns signature, timestamp, API key, cloud name
+5. Client-side code POSTs directly to Cloudinary API with credentials
+6. Cloudinary returns `secure_url` and `public_id`
+7. `updateItem()` stores both in layout item
+8. Image persists when layout is saved
 
 **State Management:**
 
-- All editor state centralized in `useEditorStore()` (Zustand)
-- Layout object holds full structure of all items
-- selectedId tracks which item is being edited
-- isSaving and hasUnsavedChanges control UI state (save button disabled state)
-- Store mutations are synchronous (immutable updates)
-- No optimistic reversions—assumes API always succeeds currently
-- Sample layout serves as fallback if database unavailable
+- **EditorState** (Zustand): Holds current layout, selected item ID, unsaved changes flag
+- **Actions** in store: `setLayout`, `selectItem`, `updateItem`, `addItem`, `removeItem`, `moveItem`, `saveLayout`
+- **Server state**: PostgreSQL through Drizzle ORM
+- **Transient state**: File uploads handled as fetch requests with form data
 
 ## Key Abstractions
 
-**LayoutItem Type Union:**
-- Purpose: Represent any content block in the layout
-- Defined in: `src/core/renderer/types.ts`
-- Pattern: Discriminated union with Zod schemas (layoutImageSchema, layoutTextSchema, layoutSpacerSchema)
-- Usage: Type-safe rendering logic switches on item.type
+**Layout Object:**
+- Purpose: Unified data structure for both viewing and editing
+- Examples: `src/core/renderer/types.ts`, `src/core/renderer/sample-layout.ts`
+- Pattern: Discriminated union of `LayoutImage | LayoutText | LayoutSpacer` items
+- Validation: Zod schemas ensure type safety
 
-**Layout Container:**
-- Purpose: Group items with metadata (id, slug, title, updatedAt)
-- Defined in: `src/core/renderer/types.ts`
-- Pattern: Single source of truth for all layout data
-- Usage: Stored as JSON in database, passed through API, managed by store
+**LayoutItem Types:**
+- `image`: Stores `src`, `alt`, `width`, `height`, `caption`, `publicId`
+- `text`: Stores `content`
+- `spacer`: Stores `height`
+- All items have `id` (nanoid) and `type` discriminator
 
-**renderItem Function:**
-- Purpose: Polymorphic rendering with mode awareness
-- Defined in: `src/core/renderer/Renderer.tsx`
-- Pattern: Factory function returning React elements with conditional styling
-- Usage: Consumed by both view renderer and editor canvas
+**Renderer Component:**
+- Purpose: Single component renders both view and edit modes
+- Pattern: `mode` prop toggles between "view" and "edit"
+- In edit mode: adds selection borders, click handlers for PropertiesPanel
+- In view mode: plain masonry display with Framer Motion animations
 
-**EditorStore Actions:**
-- Purpose: Encapsulate all state mutations for layout editing
-- Pattern: Zustand store with named action methods (addItem, moveItem, updateItem, etc.)
-- Usage: Called from UI components to maintain consistent state
+**Editor Store:**
+- Purpose: Single source of truth for all editor state
+- Pattern: Zustand store with getter/setter pattern
+- Invariants: `layout.items` immutable updates via map/filter, nanoid for new items
 
 ## Entry Points
 
-**Root Layout:**
+**Root Entry Point:**
 - Location: `src/app/layout.tsx`
-- Triggers: All route requests
-- Responsibilities: Set metadata, apply root fonts, suppress hydration warnings
+- Triggers: All requests
+- Responsibilities: Sets up HTML document, fonts, global metadata
 
-**Site Layout Group:**
+**Public Site Entry Point:**
 - Location: `src/app/(site)/layout.tsx`
-- Triggers: Routes under `(site)` group
-- Responsibilities: Render sidebar, mobile menu, main content area with max-width constraints
+- Triggers: Requests to `/` and public routes
+- Responsibilities: Renders sidebar navigation, responsive layout, main content area
 
-**Editor Layout Group:**
-- Location: `src/app/(editor)/layout.tsx`
-- Triggers: Routes under `(editor)` group
-- Responsibilities: Apply editor-specific styling (neutral-50 background)
+**Editor Entry Point:**
+- Location: `src/app/(editor)/layout.tsx` + `src/app/(editor)/editor/page.tsx`
+- Triggers: Requests to `/editor/*` (caught by middleware)
+- Responsibilities: Initialize editor state, render editor UI (canvas, toolbar, properties)
 
-**Home Page (Public):**
-- Location: `src/app/(site)/page.tsx`
-- Triggers: GET `/`
-- Responsibilities: Fetch "home" layout, render with Renderer in "view" mode
+**Authentication Entry Point:**
+- Location: `middleware.ts`
+- Triggers: All requests matching `/editor/:path*`
+- Responsibilities: Check Supabase session, redirect to `/login` if unauthenticated
 
-**Editor Page:**
-- Location: `src/app/(editor)/editor/page.tsx`
-- Triggers: GET `/editor`
-- Responsibilities: Initialize store with fetched layout, render editor UI with EditorCanvas, Toolbar, PropertiesPanel
-
-**Layouts API Route:**
-- Location: `src/app/api/layouts/[slug]/route.ts`
-- Triggers: GET/PUT `/api/layouts/{slug}`
-- Responsibilities: Fetch layout by slug, validate and persist layout updates, orchestrate Cloudinary cleanup
-
-**Upload API Route:**
-- Location: `src/app/api/upload/route.ts`
-- Triggers: POST `/api/upload`
-- Responsibilities: Generate and return Cloudinary upload signature with credentials
+**API Entry Points:**
+- `GET /api/layouts/[slug]`: Fetch layout by slug
+- `PUT /api/layouts/[slug]`: Save layout changes
+- `POST /api/upload`: Generate Cloudinary upload signature
 
 ## Error Handling
 
-**Strategy:** Graceful degradation with fallback to sample layout, client-side console logging, user-facing alerts for critical failures
+**Strategy:** Try-catch with fallback to sample data for DB operations; user-facing alerts for API errors
 
 **Patterns:**
 
-- Database errors in `getLayoutBySlug()` fall back to `sampleLayout` without throwing
-- API errors in `saveLayout()` catch and alert user: "Error al guardar los cambios"
-- Image upload errors caught in PropertiesPanel with try-catch and alert
-- Cloudinary deletion errors logged and swallowed (save continues)
-- Zod validation errors in API routes return 400 with error details
-- Unhandled errors in API routes return 500 with generic message
+1. **Database errors** (`src/lib/db/layouts.ts`):
+   ```typescript
+   try {
+     const result = await db.select().from(layouts)...
+   } catch (error) {
+     console.warn("Database error, falling back to sample layout:", error);
+     return sampleLayout; // Graceful fallback
+   }
+   ```
+
+2. **API errors** (`src/core/editor/store.ts`):
+   ```typescript
+   catch (error) {
+     console.error("Error saving layout:", error);
+     alert("Error al guardar los cambios"); // User feedback
+   }
+   ```
+
+3. **Image deletion errors** (`src/app/api/layouts/[slug]/route.ts`):
+   ```typescript
+   catch (err) {
+     console.error(`Failed to delete image ${item.publicId}:`, err);
+     // Continue even if delete fails
+   }
+   ```
+
+4. **Validation errors** (Zod in API routes):
+   ```typescript
+   if (error instanceof z.ZodError) {
+     return NextResponse.json({ error: (error as any).errors }, { status: 400 });
+   }
+   ```
 
 ## Cross-Cutting Concerns
 
-**Logging:** Console.error and console.warn for development debugging, no centralized logging infrastructure
+**Logging:** Console-based via `console.log`, `console.warn`, `console.error`
 
-**Validation:** Zod schemas in `src/core/renderer/types.ts` validate all layout data at API boundaries and store mutations
+**Validation:** Zod schemas at API boundaries and in database access layer
+- Layout schema in `src/core/renderer/types.ts`
+- Validated in `upsertLayout()` before database write
+- Validated in API route PUT handler
 
-**Authentication:** Supabase clients initialized but not integrated; authentication logic not yet implemented
+**Authentication:** Supabase auth via middleware
+- Server-side: `createSupabaseServerClient()` in `src/lib/auth/server.ts`
+- Client-side: `createBrowserClient()` in `src/lib/auth/browser.ts`
+- Middleware enforces auth for `/editor/*` routes
+- Auth state managed by Supabase SSR library
 
-**Styling:** Tailwind CSS with custom CSS variables for theming, applied globally in `src/app/globals.css`
+**Drag & Drop:** @dnd-kit library with sortable context
+- Used in `EditorCanvas` for reordering items
+- Integration points: `DndContext`, `SortableContext`, `SortableItem` wrapper
+- Updates store via `moveItem()` action
 
-**Image Optimization:** Next.js Image component with custom loader from `src/lib/storage/image-loader.ts` supporting CDN prefix or passthrough for HTTP URLs
-
-**Data Persistence:** REST-based with no real-time sync; client-side unsaved changes flag manages dirty state
+**Image Optimization:** Next.js Image component with optional CDN loader
+- Client-side image loader in `src/lib/storage/image-loader.ts`
+- Supports external URLs (Cloudinary) and internal CDN
+- Configurable via `NEXT_PUBLIC_CDN_URL` env var
 
 ---
 
-*Architecture analysis: 2026-02-12*
+*Architecture analysis: 2026-03-10*

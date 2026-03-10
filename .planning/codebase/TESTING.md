@@ -1,267 +1,120 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-02-12
+**Analysis Date:** 2026-03-10
 
 ## Test Framework
 
-**Runner:**
-- Not detected: No test framework configured
-- No `vitest.config.ts`, `jest.config.js`, or test-runner config found
-- DevDependencies do not include Jest, Vitest, or similar
-
-**Assertion Library:**
-- Not detected: No assertion library installed
-
-**Run Commands:**
-- No test commands in `package.json` scripts
-- Only available scripts: `dev`, `build`, `start`, `lint`
-
-## Test File Organization
-
-**Location:**
-- No test files found in `/src` directory
-- All test files discovered are in `node_modules` (dependency tests only)
-- Codebase does not include test files for application code
-
-**Naming:**
-- Not applicable: No project test files exist
-- Dependency test files follow pattern: `*.test.ts` or `*.spec.ts`
-
-## Test Structure
-
-**Suite Organization:**
-- Not applicable: No test framework configured
-
-## Current Testing Absence
-
-**Why Tests Are Missing:**
-- No test framework installed or configured
-- No test files created for business logic, components, or API routes
-- Early-stage project prioritizing feature development over testing
-
-**Code Areas Needing Tests:**
-1. **`src/core/editor/store.ts`** - Zustand store with complex state mutations
-   - State updates: `setLayout()`, `selectItem()`, `updateItem()`, `addItem()`, `removeItem()`, `moveItem()`
-   - Async operations: `saveLayout()` with fetch and error handling
-   - Would benefit from unit tests verifying state transitions
-
-2. **`src/lib/db/layouts.ts`** - Database operations
-   - `getLayoutBySlug()` - Read operations with fallback
-   - `upsertLayout()` - Write operations with validation
-   - Would benefit from integration tests with database mocking
-
-3. **`src/app/api/layouts/[slug]/route.ts`** - API endpoints
-   - PUT handler with complex image cleanup logic
-   - Error handling for validation and server errors
-   - Would benefit from integration tests with request/response mocking
-
-4. **`src/core/renderer/Renderer.tsx`** - React component
-   - `renderItem()` function with conditional rendering
-   - Different item types (image, text, spacer)
-   - Would benefit from unit tests using React Testing Library
-
-5. **`src/core/editor/EditorCanvas.tsx`** - Drag-and-drop canvas
-   - Drag event handling integration with dnd-kit
-   - Store integration
-   - Would benefit from component tests
-
-6. **`src/components/ContactForm.tsx`** - Form component
-   - Form submission with async loading states
-   - Animation timing
-   - Would benefit from component tests with user interactions
-
-## Mocking
-
-**Framework:**
-- Not configured: No mocking library installed
-- Fetch API would require mocking (node-fetch or jest-fetch-mock for Node.js tests)
-- Component testing would require React Testing Library or Vitest
-
-**What Would Be Mocked:**
-- Database client: `getDb()` should return mock database in tests
-- External APIs: Cloudinary API, Supabase auth
-- Fetch calls: Image uploads, layout saves
-- Next.js Router: Navigation in page components
-- Zustand store: For component isolation tests
-
-**What NOT to Mock:**
-- Pure utility functions: Calculate positions, string formatting
-- Data validation: Zod schemas should be tested directly
-- Component UI logic: DOM interactions should be tested with real components
-
-## Fixtures and Factories
-
-**Test Data:**
-- Not implemented: No fixture or factory files exist
-- Sample data available: `src/core/renderer/sample-layout.ts` contains sample layout structure suitable as fixture
-  ```typescript
-  // Could be used as test fixture:
-  const sampleLayout: Layout = {
-    id: "sample",
-    slug: "sample",
-    title: "Sample Portfolio",
-    items: [
-      // ... item samples
-    ],
-    updatedAt: new Date().toISOString(),
-  };
-  ```
-
-**Location:**
-- Would be located in `/src/__fixtures__/` or `tests/fixtures/`
-- Consider creating: `/src/__fixtures__/layouts.ts` for test data builders
-
-## Coverage
-
-**Requirements:**
-- Not enforced: No coverage threshold configured
-- No coverage tooling (nyc, c8, etc.) installed
+**Status:** Not Detected
 
 **Current State:**
-- 0% coverage: No tests exist
-- Critical paths untested: State management, API routes, form handling
+- No test files found in codebase (`.test.ts`, `.test.tsx`, `.spec.ts`, `.spec.tsx`)
+- No test framework configured (Jest, Vitest, etc.)
+- No test configuration files (jest.config.js, vitest.config.ts)
+- No testing libraries in `package.json` (no @testing-library/react, jest, vitest, etc.)
 
-## Test Types
-
-**Unit Tests:**
-- Not present
-- Should test: Store actions, utility functions, type validation
-- Could use: Vitest (lightweight) or Jest
-
-**Integration Tests:**
-- Not present
-- Should test: API routes with database, Zustand store with components
-- Could use: MSW (Mock Service Worker) for API mocking
-
-**E2E Tests:**
-- Not present
-- Could use: Playwright or Cypress for editor interactions and form submissions
-- Important for: Canvas drag-and-drop, authentication flows, image uploads
-
-**Component Tests:**
-- Not present
-- Should test: React component rendering, user interactions
-- Could use: React Testing Library + Vitest
-
-## Async Testing Patterns
-
-**Current Code Pattern (No Test Framework):**
-```typescript
-// From ContactForm.tsx - simulating async operations:
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setLoading(true);
-
-  // Simulate sending
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  setLoading(false);
-  setSuccess(true);
-};
+**Run Commands:**
+```bash
+npm run lint              # Only linting - no tests currently
 ```
 
-**Recommended Test Pattern (Once Framework Installed):**
-```typescript
-// Would look like:
-it("should show loading state during submission", async () => {
-  // render component
-  // user.click(submitButton)
-  // expect(loadingState).toBeVisible()
-  // await waitFor(() => expect(successMessage).toBeVisible())
-});
-```
+## Testing Gap Analysis
 
-**Store Async Testing Pattern:**
-```typescript
-// From store.ts - saveLayout() would be tested like:
-// await act(async () => {
-//   await store.getState().saveLayout()
-// })
-// expect(store.getState().hasUnsavedChanges).toBe(false)
-```
+**Untested Areas:**
 
-## Error Testing
+1. **State Management:**
+   - `src/core/editor/store.ts` - Zustand store with 11 actions (setLayout, selectItem, updateItem, addItem, removeItem, moveItem, setSaving, saveLayout)
+   - Complex async logic in `saveLayout()` with fetch, error handling, UI state updates
+   - No tests for state mutations, side effects, or error scenarios
 
-**Current Patterns in Code:**
-- Try-catch blocks catch errors but don't test error cases
-- API routes return error responses but untested
-- Store catches save errors and shows alert: `alert("Error al guardar los cambios")`
+2. **API Routes:**
+   - `src/app/api/layouts/[slug]/route.ts` - GET and PUT handlers
+   - Complex PUT logic: layout fetching, image deletion coordination, Cloudinary cleanup, database upsert
+   - No tests for param validation, error cases, or concurrent operations
 
-**Recommended Error Testing Pattern:**
-```typescript
-// API error testing:
-describe("PUT /api/layouts/[slug]", () => {
-  it("should return 400 for slug mismatch", async () => {
-    const res = await PUT(request, { params: { slug: "old" } });
-    const data = await res.json();
-    expect(res.status).toBe(400);
-    expect(data.error).toBe("Slug mismatch");
-  });
+3. **Components:**
+   - `src/components/ContactForm.tsx` - Form submission with loading states
+   - `src/components/Modal.tsx` - Modal open/close logic, body overflow side effects
+   - `src/core/editor/PropertiesPanel.tsx` - Image upload with Cloudinary integration (190 lines, complex)
+   - `src/core/editor/EditorCanvas.tsx` - Drag-and-drop functionality
+   - No component rendering tests, event handling tests, or state changes
 
-  it("should handle ZodError validation", async () => {
-    // mock invalid JSON response
-    expect(res.status).toBe(400);
-  });
-});
+4. **Utilities:**
+   - `src/lib/db/layouts.ts` - Database operations with fallbacks
+   - `src/lib/cloudinary.ts` - Image upload signature generation and deletion
+   - `src/lib/auth/server.ts`, `src/lib/auth/browser.ts` - Supabase client creation
+   - No tests for error scenarios or database connectivity
 
-// Store error testing:
-describe("useEditorStore", () => {
-  it("should handle save errors gracefully", async () => {
-    // mock fetch to reject
-    await store.getState().saveLayout();
-    // verify error was logged
-    // verify hasUnsavedChanges remains true
-  });
-});
-```
+5. **Type Safety:**
+   - Zod schemas in `src/core/renderer/types.ts` - validation logic not tested
+   - Type inference working, but no runtime validation tests
 
-## Recommended Testing Setup
+## Risk Assessment
 
-**To Add Testing to This Project:**
+**High-Risk Untested Code:**
 
-1. **Install Testing Framework:**
-   ```bash
-   npm install -D vitest @vitest/ui @vitest/coverage-v8
-   npm install -D @testing-library/react @testing-library/jest-dom
-   npm install -D jsdom
-   ```
+1. **Image Upload Flow** (Critical):
+   - Files: `src/core/editor/PropertiesPanel.tsx` (lines 15-64), `src/app/api/upload/route.ts`
+   - Risk: Silent failures, malformed Cloudinary responses, concurrent uploads
+   - Without tests: Can't verify signature generation, upload sequencing, or error recovery
 
-2. **Create `vitest.config.ts`:**
-   ```typescript
-   import { defineConfig } from "vitest/config";
-   import react from "@vitejs/plugin-react";
+2. **Layout Save Operation** (Critical):
+   - Files: `src/core/editor/store.ts` (lines 123-146), `src/app/api/layouts/[slug]/route.ts`
+   - Risk: Partial saves, orphaned Cloudinary images, state inconsistency
+   - Without tests: Race conditions, cleanup failures after image deletion go undetected
 
-   export default defineConfig({
-     plugins: [react()],
-     test: {
-       globals: true,
-       environment: "jsdom",
-       coverage: {
-         provider: "v8",
-         reporter: ["text", "json"],
-       },
-     },
-   });
-   ```
+3. **State Mutations** (High):
+   - Files: `src/core/editor/store.ts`
+   - Risk: Incorrect state transitions, lost unsaved changes flags, selection leaks
+   - Without tests: Complex store actions have no verification of side effects
 
-3. **Add Test Scripts to `package.json`:**
-   ```json
-   "test": "vitest",
-   "test:ui": "vitest --ui",
-   "test:coverage": "vitest --coverage"
-   ```
+4. **Error Recovery** (Medium):
+   - Files: `src/lib/db/layouts.ts` (database fallback), `src/app/api/layouts/[slug]/route.ts` (error responses)
+   - Risk: Fallbacks may mask real problems, error responses might expose internal details
+   - Without tests: Can't verify error handling paths are properly exercised
 
-4. **Create Test Directories:**
-   - `/src/__tests__/` - Unit tests
-   - `/src/__fixtures__/` - Test data
-   - `/src/app/api/__tests__/` - API route tests
+## Recommendations for Implementation
 
-5. **Priority Test Files to Create:**
-   - `/src/__tests__/core/editor/store.test.ts` - Store logic (highest impact)
-   - `/src/__tests__/lib/db/layouts.test.ts` - Database operations
-   - `/src/app/api/__tests__/layouts.route.test.ts` - API endpoints
-   - `/src/__tests__/components/ContactForm.test.tsx` - Form component
+**Priority 1: Add Test Framework**
+- Install: `npm install --save-dev vitest @vitest/ui @testing-library/react @testing-library/jest-dom jsdom`
+- Config file: `vitest.config.ts`
+- Run command: `npm run test` (add to package.json scripts)
+
+**Priority 2: Critical Path Tests**
+- Test: Image upload signature generation and validation
+- Test: Layout save with image cleanup coordination
+- Test: Zustand store mutations and async actions
+
+**Priority 3: Component Tests**
+- Test: Modal open/close and overflow side effects
+- Test: Contact form submission and loading states
+- Test: Properties panel form updates and file upload
+
+**Priority 4: Integration Tests**
+- Test: Full editor flow: create → add items → save
+- Test: Image replacement and old image cleanup
+- Test: Database fallback on connection failure
+
+## Current Test Coverage
+
+**Estimated Coverage:** 0%
+
+- No unit tests
+- No integration tests
+- No E2E tests
+- Manual testing required for all features
+
+## Type Safety Alternative
+
+**Current Safeguard:** TypeScript + Zod runtime validation
+
+Since no automated tests exist, the project relies on:
+- TypeScript strict mode type checking at build time
+- Zod schema validation at runtime for data parsing
+- Console error logging for debugging
+- Manual browser testing during development
+
+**Verification:** Run `npm run lint` and `npm run build` to catch type errors before deployment.
 
 ---
 
-*Testing analysis: 2026-02-12*
+*Testing analysis: 2026-03-10*

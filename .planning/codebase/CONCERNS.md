@@ -1,273 +1,205 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-02-12
+**Analysis Date:** 2026-03-10
 
 ## Tech Debt
 
-**Non-functional ContactForm:**
-- Issue: ContactForm component simulates email sending with a 2-second setTimeout instead of actually sending messages
-- Files: `src/components/ContactForm.tsx`
-- Impact: Contact form appears to work but discards all user input - no messages are captured or sent
-- Fix approach: Implement actual backend API endpoint to handle form submission, validate inputs server-side, and integrate with email service (SendGrid, Resend, etc.)
+**Hardcoded Placeholder Image in Editor:**
+- Issue: Editor store uses hardcoded Unsplash URL as default image when adding new image items
+- Files: `src/core/editor/store.ts` (lines 55)
+- Impact: All new images start with same placeholder URL instead of blank/null state; creates inconsistent behavior for different users
+- Fix approach: Change placeholder to empty string or null; let UI handle showing placeholder state
 
-**Incomplete Editor Implementation:**
-- Issue: EditorPage contains TODO comment and uses hardcoded slug "home" instead of dynamic routing
-- Files: `src/app/(editor)/editor/page.tsx`
-- Impact: Only one layout can be edited, no support for multiple pages or dynamic layout selection
-- Fix approach: Implement dynamic routing via URL parameters, add slug selection UI, implement logic to distinguish between creating new layouts vs editing existing ones
+**Unimplemented Contact Form Backend:**
+- Issue: ContactForm component has only client-side simulation (2-second timeout) with no server integration
+- Files: `src/components/ContactForm.tsx` (lines 14-23)
+- Impact: Form never actually sends data; no emails delivered; users get false success confirmation
+- Fix approach: Implement actual backend API endpoint to handle form submission, validate, and send via email service
 
-**Missing Upload API Endpoint:**
-- Issue: PropertiesPanel references a needed API endpoint for upload management ("I need an API endpoint for getting the upload URL" - inline comment)
-- Files: `src/core/editor/PropertiesPanel.tsx` (line 4)
-- Impact: Current implementation works but bypasses potential centralized upload management and security layers
-- Fix approach: Create dedicated upload management API with request validation, rate limiting, and proper error handling before delegating to Cloudinary
+**Missing Layout Fetch Error Handling:**
+- Issue: Editor page falls back to sample layout on ANY fetch error without distinguishing between 404 (new layout) and actual failures
+- Files: `src/app/(editor)/editor/page.tsx` (lines 19-29)
+- Impact: Silent failures make debugging difficult; real errors go unnoticed; no user feedback on what went wrong
+- Fix approach: Add explicit error states; log/report errors; show different UX for "layout not found" vs "server error"
 
-**Database Connection Fallback Too Permissive:**
-- Issue: Database client silently returns sample layout when DATABASE_URL is missing - no error indication to user
-- Files: `src/lib/db/client.ts`, `src/lib/db/layouts.ts`
-- Impact: In production, missing environment variable could cause data loss (user saves are silently discarded) without visible error
-- Fix approach: Log clear warnings for missing DATABASE_URL in production, consider fail-fast approach or require explicit configuration
+**Manual Slug/Layout Mismatch Validation:**
+- Issue: PUT endpoint manually checks slug match instead of relying on type system
+- Files: `src/app/api/layouts/[slug]/route.ts` (lines 25-27)
+- Impact: Runtime check that should be compile-time safe; creates validation layer that can be bypassed
+- Fix approach: Use path parameter validation at type level; extract slug from validated params
 
----
+**Database Connection Singleton with No Reset:**
+- Issue: Database client initialized once globally with no way to close or reset connection
+- Files: `src/lib/db/client.ts` (lines 4-16)
+- Impact: Connection pooling issues on hot reloads; memory leaks in development; connection limits in serverless
+- Fix approach: Use Drizzle's connection pool management; implement proper cleanup on server shutdown
+
+**Missing File Upload Validation:**
+- Issue: Image upload handler accepts any file type and size without validation
+- Files: `src/core/editor/PropertiesPanel.tsx` (lines 15-64)
+- Impact: Users can upload non-image files; large files consume bandwidth/storage; no file type enforcement
+- Fix approach: Add client-side type/size checks; add server-side validation in /api/upload route
+
+**Empty Environment Variable Fallbacks:**
+- Issue: Browser and server auth clients use empty strings when env vars missing
+- Files: `src/lib/auth/browser.ts` (lines 5-6), `middleware.ts` (lines 13-14)
+- Impact: Silent failures to initialize Supabase; auth checks appear to pass but don't actually work
+- Fix approach: Throw explicit errors on missing required env vars at startup; validate config before using
+
+**Unsafe Image URL Update:**
+- Issue: PropertiesPanel allows direct URL edit without validation or sanitization
+- Files: `src/core/editor/PropertiesPanel.tsx` (lines 87-92)
+- Impact: Users can paste malicious URLs; no format validation; broken URLs silently fail
+- Fix approach: Validate URLs before saving; show preview; handle CORS errors gracefully
 
 ## Known Bugs
 
-**Auth State Lost Between Requests:**
-- Symptoms: Login may appear successful but middleware might not recognize session due to cookie synchronization timing
-- Files: `middleware.ts`, `src/lib/auth/browser.ts`, `src/lib/auth/server.ts`
-- Trigger: Multiple rapid requests after login or page refresh immediately after authentication
-- Workaround: Manual page refresh or retry login attempt usually resolves it
+**Cloudinary Image Deletion Doesn't Block Save:**
+- Symptoms: When removing images, deletion from Cloudinary can fail but save still succeeds, leaving orphaned files
+- Files: `src/app/api/layouts/[slug]/route.ts` (lines 42-54)
+- Trigger: Remove an image from layout and save when Cloudinary is down/slow
+- Workaround: Manual cleanup of orphaned images via Cloudinary dashboard
 
-**Image Upload Public ID Not Always Captured:**
-- Symptoms: Images may be uploaded to Cloudinary but `publicId` field not stored in database, breaking deletion on future edits
-- Files: `src/app/api/layouts/[slug]/route.ts`, `src/core/editor/PropertiesPanel.tsx`
-- Trigger: When updateItem receives upload response but optional `publicId` field is undefined
-- Workaround: Manually track Cloudinary public IDs outside the system or re-upload images
+**Image Dimension Casting Loss:**
+- Symptoms: Entering decimal/invalid numbers in width/height fields gets silently converted to 0
+- Files: `src/core/editor/PropertiesPanel.tsx` (lines 129-148)
+- Trigger: Type "abc" in width field and save
+- Workaround: Only enter valid positive integers
 
-**Unsaved Changes Not Persisted on Disconnect:**
-- Symptoms: If user loses connection, layout changes made since last save are lost with no recovery mechanism
-- Files: `src/core/editor/store.ts`
-- Trigger: Network failure or tab close without saving
-- Workaround: Implement periodic autosave or IndexedDB backup before save attempt
-
----
+**Missing "No Layout" State:**
+- Symptoms: Editor shows "Loading..." indefinitely if layout fetch fails completely
+- Files: `src/app/(editor)/editor/page.tsx` (line 46)
+- Trigger: Visit /editor when API is down or database is unavailable
+- Workaround: Hard refresh or clear browser cache
 
 ## Security Considerations
 
-**Cloudinary Credentials Exposed in Client Code:**
-- Risk: API key and signature are generated and visible in browser network requests without encryption or additional validation
-- Files: `src/core/editor/PropertiesPanel.tsx`, `src/app/api/upload/route.ts`, `src/lib/cloudinary.ts`
-- Current mitigation: Cloudinary API key is restricted to API key (not secret), but folder parameter is user-controllable
-- Recommendations:
-  - Validate folder parameter against whitelist of allowed layouts
-  - Add rate limiting to `/api/upload` endpoint
-  - Consider moving image upload entirely server-side to avoid exposing Cloudinary credentials
-  - Add request authentication check to `/api/upload` endpoint
+**API Upload Signature Exposed to Client:**
+- Risk: Cloudinary API key and timestamp/signature sent to browser; anyone can forge upload requests
+- Files: `src/app/api/upload/route.ts` (line 9), `src/core/editor/PropertiesPanel.tsx` (lines 20-38)
+- Current mitigation: Cloudinary API key is "public" (scoped) but still unnecessary exposure
+- Recommendations: Implement signed server-side upload URLs; validate file ownership before allowing; add rate limiting
 
-**Missing Authentication on API Routes:**
-- Risk: `/api/layouts/[slug]/route.ts` has no authentication checks - any user can update any layout
-- Files: `src/app/api/layouts/[slug]/route.ts`
-- Current mitigation: Middleware protects `/editor` routes, but API routes are unprotected
-- Recommendations:
-  - Add Supabase auth verification to PUT and GET endpoints
-  - Validate user owns the requested layout before allowing updates
-  - Add audit logging for layout modifications
+**Missing CSRF Protection on Layout Updates:**
+- Risk: PUT endpoint accepts requests from any origin without token validation
+- Files: `src/app/api/layouts/[slug]/route.ts` (lines 16-72)
+- Current mitigation: Middleware auth check, but insufficient for state-changing operations
+- Recommendations: Add CSRF tokens; validate Origin header; implement double-submit cookie
 
-**Environment Variables Missing in Deployment:**
-- Risk: Empty string fallbacks (`process.env.X ?? ""`) hide missing critical config
-- Files: `src/lib/auth/server.ts`, `src/lib/auth/browser.ts`, `middleware.ts`
-- Current mitigation: App falls back to empty configs which causes API failures
-- Recommendations:
-  - Validate required env vars at startup with clear error messages
-  - Use Zod schema for environment configuration
-  - Fail fast in development if critical vars are missing
+**No Input Sanitization on Text Content:**
+- Risk: User-entered text content stored and rendered without escaping
+- Files: `src/core/renderer/Renderer.tsx` (lines 56-68), stored via `src/lib/db/layouts.ts`
+- Current mitigation: React auto-escapes by default in JSX, but only text not rich content
+- Recommendations: If adding rich text editing, sanitize HTML; validate content length limits
 
-**Insufficient Error Handling in API Routes:**
-- Risk: Error details sometimes logged to console and returned to client (e.g., Zod validation errors)
-- Files: `src/app/api/layouts/[slug]/route.ts` (line 61-64)
-- Current mitigation: Generic "Internal Server Error" text, but Zod errors array could leak implementation details
-- Recommendations:
-  - Sanitize all error responses to avoid exposing internal validation structure
-  - Log detailed errors server-side only
-  - Return generic error messages to client
+**Unencrypted Layout Data in Database:**
+- Risk: All layout JSON stored plaintext in database; includes image URLs and metadata
+- Files: `src/lib/db/schema.ts` (line 7), `src/lib/db/layouts.ts` (line 42)
+- Current mitigation: Access requires authentication; database connection over encrypted channel
+- Recommendations: For MVP acceptable, but consider field-level encryption for future phases
 
----
+**Weak Password Requirements:**
+- Risk: Supabase auth used but no password policy enforcement visible
+- Files: `src/app/(editor)/login/page.tsx` (entire file)
+- Current mitigation: Supabase default rules apply
+- Recommendations: Document Supabase auth config; add password strength indicators on signup
 
 ## Performance Bottlenecks
 
-**No Pagination or Virtualization for Large Layouts:**
-- Problem: EditorCanvas renders all layout items without virtualization - performance degrades with hundreds of items
-- Files: `src/core/editor/EditorCanvas.tsx`
-- Cause: Simple `.map()` rendering without react-virtuoso (already in dependencies)
-- Improvement path:
-  - Implement windowing with react-virtuoso for edit view
-  - Consider lazy rendering for items outside viewport
-  - Add performance monitoring for render times
+**Synchronous Image Delete on Every Save:**
+- Problem: Layout update waits for ALL image deletions to complete sequentially/in parallel Promise.all
+- Files: `src/app/api/layouts/[slug]/route.ts` (lines 42-54)
+- Cause: Cloudinary API calls block layout save; if one delete is slow, entire request times out
+- Improvement path: Queue image deletes asynchronously; return layout save immediately; handle cleanup in background job
 
-**Unnecessary Image Reloads:**
-- Problem: Images in editor re-request from Cloudinary on every selection/deselection due to key prop changes
-- Files: `src/core/renderer/Renderer.tsx`
-- Cause: `key={item.id}` causes unmount/remount on selection changes
-- Improvement path: Decouple visual selection state from component key structure
+**No Pagination for Large Layouts:**
+- Problem: Editor loads entire layout (all items) at once; no lazy loading or virtualization in canvas
+- Files: `src/app/(editor)/editor/page.tsx` (entire editor), `src/core/renderer/Renderer.tsx` (line 90)
+- Cause: Rendering 100+ items causes frame drops and lag
+- Improvement path: Implement viewport-based rendering; load items on scroll; use react-virtuoso or similar
 
-**No Image Optimization:**
-- Problem: Cloudinary URLs used directly without transformation params (resize, quality, format)
-- Files: `src/core/editor/PropertiesPanel.tsx`, `src/core/renderer/Renderer.tsx`
-- Cause: User can set arbitrary image URLs without optimization
-- Improvement path:
-  - Add Cloudinary transformation params to image URLs
-  - Implement responsive image sizing with srcset
-  - Add quality/format negotiation based on browser
+**Unoptimized Image Rendering:**
+- Problem: Next.js Image component used correctly but no size optimization or format variants
+- Files: `src/core/renderer/Renderer.tsx` (lines 39-45)
+- Cause: Large original images served without resizing; no WebP fallback
+- Improvement path: Use Cloudinary transformations in URL; add responsive sizes to Next.js Image
 
-**Database Queries Not Optimized:**
-- Problem: Full layout data stored as JSONB, entire object fetched and serialized on every request
-- Files: `src/lib/db/layouts.ts`, `src/lib/db/schema.ts`
-- Cause: Simple single-table schema without indexing strategy
-- Improvement path:
-  - Add database indexes on slug column
-  - Consider breaking out frequently-accessed fields (title, slug) into separate columns
-  - Implement query result caching in `/api/layouts/[slug]`
+**Missing Database Query Optimization:**
+- Problem: getLayoutBySlug fetches all fields including large JSON blob; no projection or caching
+- Files: `src/lib/db/layouts.ts` (lines 14-17)
+- Cause: Every page load refetches from database; Cloudinary metadata included in stored JSON
+- Improvement path: Add query caching; store only essential fields; cache layout metadata separately
 
----
+**No Request Deduplication:**
+- Problem: If user rapidly clicks "add image" or saves, multiple simultaneous requests fire
+- Files: `src/core/editor/PropertiesPanel.tsx` (lines 15-64), `src/core/editor/store.ts` (lines 123-146)
+- Cause: No request cancellation or debouncing; store doesn't prevent concurrent saves
+- Improvement path: Add debounce to save action; cancel pending uploads on new request; use optimistic updates
 
 ## Fragile Areas
 
-**Editor State Store with No Undo/Redo:**
-- Files: `src/core/editor/store.ts`
-- Why fragile: State mutations are immediate with no history tracking - accidental deletions are permanent until page reload
-- Safe modification:
-  - Wrap store mutations with history stack (implement Ctrl+Z)
-  - Add confirmation dialogs before destructive operations
-  - Persist draft state to localStorage
-- Test coverage: No test file exists for store logic
+**Editor Store State Synchronization:**
+- Files: `src/core/editor/store.ts` (entire file)
+- Why fragile: Store and API can get out of sync; no conflict resolution if user edits while save is pending
+- Safe modification: Always set isSaving state; disable UI during save; refetch layout after save confirms
+- Test coverage: No tests exist for save/update race conditions or concurrent edits
 
-**Image Deletion Without Verification:**
-- Files: `src/app/api/layouts/[slug]/route.ts`
-- Why fragile: Images are deleted from Cloudinary before database confirms save - orphaned images if save fails
-- Safe modification:
-  - Defer Cloudinary deletions until after database transaction completes
-  - Add transaction rollback if Cloudinary delete fails
-  - Implement soft delete with cleanup job
-- Test coverage: No tests for image deletion flow
+**Complex Image Deletion Logic:**
+- Files: `src/app/api/layouts/[slug]/route.ts` (lines 29-54)
+- Why fragile: Identifies removed images by comparing ID sets; breaks if item IDs can be null/undefined
+- Safe modification: Add strict null checks; validate that publicId exists before deleting; log all deletions
+- Test coverage: No tests for deletion flow; edge case of missing publicIds untested
 
-**Drag-and-Drop Without Persistence:**
-- Files: `src/core/editor/EditorCanvas.tsx`, `src/core/editor/store.ts`
-- Why fragile: Item reordering doesn't persist until manual save - easy to lose item order on unexpected navigation
-- Safe modification:
-  - Add auto-save on reorder completion
-  - Show unsaved indicator more prominently
-  - Warn user before navigation with unsaved changes
-- Test coverage: No tests for drag-and-drop reordering
+**Drag-and-Drop Layout:**
+- Files: `src/core/editor/EditorCanvas.tsx` (entire file), `src/core/editor/store.ts` (lines 97-119)
+- Why fragile: Relies on exact array index matching between activeId/overId; complex dnd-kit integration
+- Safe modification: Add type-safe item tracking; validate indexes before arrayMove; add drop event validation
+- Test coverage: No tests for drop failures; no error boundary for drag context
 
-**Untyped Form Data in ContactForm:**
-- Files: `src/components/ContactForm.tsx`
-- Why fragile: Form values not captured in state, only submitted in event handler
-- Safe modification:
-  - Add form state management with validation schema
-  - Implement proper error handling and display
-  - Validate inputs before submission
-- Test coverage: No tests for form submission
+**Database Connection Fallback:**
+- Files: `src/lib/db/layouts.ts` (lines 7-11, 30-32)
+- Why fragile: Returns sample layout when DB is down/unavailable; users won't know data isn't persisted
+- Safe modification: Always throw explicit error; never silently fall back; let caller decide handling
+- Test coverage: No tests for database unavailable scenario
 
----
-
-## Scaling Limits
-
-**Single Editor Instance Only:**
-- Current capacity: One user can edit "home" layout at a time
-- Limit: No concurrent editing, no support for multiple layouts, no user workspace management
-- Scaling path:
-  - Implement layout ownership and multi-user support
-  - Add layout versioning and collaboration features
-  - Build layout templates system
-
-**Cloudinary Storage Without Limits:**
-- Current capacity: Unlimited image uploads per layout
-- Limit: No quota enforcement, storage costs scale linearly with user uploads
-- Scaling path:
-  - Add per-user/per-layout upload quota
-  - Implement image deduplication across layouts
-  - Add storage monitoring and alerts
-
-**No Analytics or Monitoring:**
-- Current capacity: Zero instrumentation
-- Limit: Cannot diagnose performance issues or user behavior
-- Scaling path:
-  - Add error tracking (Sentry, LogRocket)
-  - Implement performance monitoring (Web Vitals, API response times)
-  - Add user analytics to understand editor usage patterns
-
----
-
-## Dependencies at Risk
-
-**Babel React Compiler (Experimental):**
-- Risk: `babel-plugin-react-compiler` v1.0.0 is experimental and may have breaking changes
-- Impact: Automatic memoization optimization could behave unexpectedly or break with future React versions
-- Migration plan: Monitor React releases, consider removing if causes performance regressions or memory issues
-
-**Next.js 16.1.6 Fast-Moving:**
-- Risk: Near-latest Next.js version, API stability not guaranteed
-- Impact: App router API changes could require significant refactoring
-- Migration plan: Pin version until major version is stable, implement feature detection for breaking changes
-
----
-
-## Missing Critical Features
-
-**No Auth UI for Sign-Up:**
-- Problem: Only login page exists, no registration flow for new users
-- Blocks: New users cannot access editor, team expansion impossible
-- Fix approach: Implement signup page with email verification, integrate with Supabase auth
-
-**No Layout Versioning:**
-- Problem: No way to revert to previous layout versions
-- Blocks: Accidental deletions/overwrites cannot be recovered
-- Fix approach: Implement layout version history, add restore functionality
-
-**No Image Management Dashboard:**
-- Problem: No way to see all uploaded images, manage storage, or bulk delete
-- Blocks: Users cannot audit what images are being stored and billed
-- Fix approach: Create image management UI, add bulk operations
-
-**No Export/Import:**
-- Problem: Layouts are locked to this editor, no portability
-- Blocks: Users cannot migrate to other tools or backup layouts
-- Fix approach: Implement JSON/HTML export, drag-and-drop import
-
----
+**Zustand Store with No Persistence:**
+- Files: `src/core/editor/store.ts` (entire file)
+- Why fragile: All editor state lost on page refresh; unsaved changes disappear silently
+- Safe modification: Add localStorage hydration; show "unsaved changes" indicator; prompt on unload
+- Test coverage: No tests for state persistence or loss scenarios
 
 ## Test Coverage Gaps
 
-**Editor Store Logic Untested:**
-- What's not tested: Item add/remove/update/move operations, state transitions
+**No Unit Tests for Core Editor Logic:**
+- What's not tested: Store reducers (addItem, removeItem, moveItem, updateItem, saveLayout)
 - Files: `src/core/editor/store.ts`
-- Risk: State mutations could fail silently or produce unexpected results when refactoring
-- Priority: High - core functionality depends on store correctness
+- Risk: Changes to store logic break silently; race conditions in saveLayout undetected
+- Priority: High - store is core to application functionality
 
-**API Route Error Handling Untested:**
-- What's not tested: Invalid payloads, missing database, Cloudinary failures, race conditions
+**No Integration Tests for API Routes:**
+- What's not tested: Layout fetch/save endpoints; image deletion logic; Cloudinary integration
 - Files: `src/app/api/layouts/[slug]/route.ts`, `src/app/api/upload/route.ts`
-- Risk: Production errors will leak implementation details or cause data loss
-- Priority: High - direct user data impact
+- Risk: API changes break silently; database failures not caught; orphaned images created
+- Priority: High - API is critical data path
 
-**Authentication Flows Untested:**
-- What's not tested: Login/logout, middleware auth checks, token expiration, concurrent requests
-- Files: `middleware.ts`, `src/lib/auth/server.ts`, `src/lib/auth/browser.ts`
-- Risk: Auth bypass vulnerabilities or session state corruption could occur
-- Priority: High - security-critical
+**No E2E Tests for Editor Workflows:**
+- What's not tested: Complete workflows (add item, edit properties, save, reload); image upload flow
+- Files: Editor pages and components
+- Risk: Full workflows fail but individual parts test fine; regression on future changes
+- Priority: Medium - core user workflows untested
 
-**Image Upload End-to-End Untested:**
-- What's not tested: Signature generation, Cloudinary API success/failure, metadata capture, cleanup on failure
-- Files: `src/core/editor/PropertiesPanel.tsx`, `src/lib/cloudinary.ts`
-- Risk: Images could be uploaded but metadata lost, orphaned Cloudinary files accumulate
-- Priority: High - data consistency impact
+**No Tests for Database Layer:**
+- What's not tested: upsertLayout, getLayoutBySlug with various inputs; error handling
+- Files: `src/lib/db/layouts.ts`
+- Risk: Database errors undetected; data corruption scenarios not caught
+- Priority: Medium - data integrity impacts
 
-**Responsive Layout Untested:**
-- What's not tested: Mobile vs desktop rendering, drag-and-drop on touch devices, modal behavior on small screens
-- Files: All components
-- Risk: Mobile users experience broken UI or editor functionality
-- Priority: Medium - user experience impact
+**No Tests for Auth/Middleware:**
+- What's not tested: Middleware redirects; protected route access; session validation
+- Files: `middleware.ts`, `src/app/(editor)/login/page.tsx`
+- Risk: Auth bypass or lockouts undetected; silent failures
+- Priority: Medium-High - security relevant
 
 ---
 
-*Concerns audit: 2026-02-12*
+*Concerns audit: 2026-03-10*
