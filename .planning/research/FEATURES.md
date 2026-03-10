@@ -1,226 +1,215 @@
-# Feature Landscape: Photography Portfolio
+# Feature Research
 
-**Domain:** Professional Photography Portfolio with Admin CMS
-**Researched:** 2026-02-12
-**Confidence:** MEDIUM-HIGH
+**Domain:** Single-photographer portfolio with block-based grid editor and image management admin
+**Researched:** 2026-03-10
+**Confidence:** MEDIUM-HIGH (core features HIGH, protection nuances MEDIUM)
+
+---
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these = product feels incomplete or unprofessional.
+These are non-negotiable for the portfolio to feel complete and professional. The "user" here is dual: the public visitor and the photographer-admin.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Photo Lightbox Viewer | Photographers expect to view full-screen, high-quality images without leaving the site | MEDIUM | Auto-detection of zoomable images, must handle various aspect ratios |
-| Zoom & Pan | Professional viewing requires magnification of details in photos (especially important for work samples) | MEDIUM | Mouse wheel zoom, drag-to-pan, touch pinch-to-zoom on mobile |
-| Next/Previous Navigation | Users expect arrow keys, swipe, or button controls to browse photos within lightbox | LOW | Keyboard shortcuts (arrow keys, ESC to close) critical for usability |
-| Responsive Grid Gallery | Photos must display well on all screen sizes (desktop, tablet, mobile) | LOW | Masonry or dynamic grid adapting to device width |
-| Fast Image Loading | Photographers prioritize image quality; slow loading kills credibility | MEDIUM | Lazy loading, modern formats (WebP/AVIF), responsive image sizes |
-| Project/Portfolio Organization | Work grouped logically (by genre, client type, season, theme) helps visitors find relevant examples | LOW | Clear categorization, multiple galleries possible but not overwhelming |
-| Clean, Minimal UI | Photography sites thrive on whitespace and letting images shine; busy interfaces distract | LOW | Subtle controls, auto-hide UI during full-screen viewing |
-| Mobile Support | Professional photographers expect their work to look great on phones | MEDIUM | Touch-friendly navigation, fullscreen on mobile, optimized performance |
-| Grayscale-to-Color Hover Effect | Mentioned in project context; differentiates gallery while maintaining elegance | LOW | CSS filters or simple hover state transitions |
-| Contact Information Prominence | Users must easily find how to hire the photographer | LOW | Always visible or quick access (modal, footer, or navigation) |
+| Responsive grid gallery on homepage | Every professional portfolio has this; absence signals amateur | LOW | Already exists as masonry grid; needs column/block-size upgrade |
+| Project pages with dedicated galleries | Visitors expect to browse by project/series | MEDIUM | Core of the new milestone |
+| Lightbox / photo viewer | Clicking a photo and having it expand is universal expectation | MEDIUM | Arrow nav, keyboard, close on backdrop click |
+| About page with bio and photo | First thing clients look for after portfolio | LOW | Admin-editable bio + profile photo |
+| Contact section | Required for any professional's site | LOW | Already has ContactForm component |
+| Image upload from admin | Without this the photographer cannot manage content independently | MEDIUM | Exists via Cloudinary; migrating to R2 |
+| Secure admin login | Single-user admin must be inaccessible to attackers | MEDIUM | Already has Supabase auth; migrating to Auth.js + TOTP |
+| Fast image loading | Slow images = visitors leave; Google penalizes slow sites | MEDIUM | Lazy loading, progressive JPEG, proper sizing |
+| Mobile-responsive layout | >50% of portfolio visitors browse on mobile | MEDIUM | Tailwind responsive utilities; test on actual devices |
+| Sidebar/navigation with project listing | Visitors need to explore; no nav = dead end | LOW | Already partially exists |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set portfolio apart. Not required, but valued when executed well.
+Features that make this portfolio stand out and serve the photographer's specific creative and security needs.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Inline Admin Editing | Admin can edit content while viewing public site; changes reflect immediately (matching stated requirement) | HIGH | Requires careful UX design so overlay doesn't interfere with viewing; state management between admin/public modes critical |
-| Project Pages with Rich Layouts | 12-column grid layout with custom composition (rows, spans, varied image sizes) shows curation and editorial intent | MEDIUM | Database must store layout metadata; frontend must render flexible grid compositions |
-| Metadata Display in Lightbox | Camera settings, location, date, series description shown alongside images gives clients confidence in skill | MEDIUM | Requires structured metadata storage; must not clutter image viewing |
-| Client Gallery/Proofing | Private link allowing clients to view, comment, and select images (not building in MVP but differentiator) | HIGH | Separate from public portfolio; requires auth, private albums, collaborative features |
-| Visual Brand Consistency | Cohesive design system (typography, color, spacing) shows intentionality; custom theme (already has theme toggle) | LOW | Theme toggle already implemented; potential: preset themes or custom color picker |
-| Storytelling Presentation | Ability to add captions, descriptions, or narrative context to projects elevates from "just photos" to "curated stories" | MEDIUM | Rich text editor for project descriptions; optional captions per image |
-| Print-Optimized View | High-DPI image download or optimized print layout for clients wanting physical proofs | MEDIUM-HIGH | Requires alternate image optimization; EXIF preservation; potential licensing/watermarking |
-| Performance Metrics | Fast Core Web Vitals, LCP focus, optimized for photographers who understand technical excellence | LOW-MEDIUM | Image optimization, lazy loading, efficient rendering already improving this |
+| Block-based grid editor with configurable columns and sizes (1x1, 2x1, 2x5, etc.) | Photographer has full creative control over layout rhythm; competitors offer only uniform grids | HIGH | CSS grid with col-span / row-span; dnd-kit already in codebase; biggest build investment |
+| EXIF metadata display in lightbox | Conveys craft and technical depth; fellow photographers and serious clients appreciate it | MEDIUM | Extract server-side on upload with sharp; store in DB; display optionally in lightbox panel |
+| Visible watermark on all displayed images | Deters opportunistic theft; brand reinforcement on every image | MEDIUM | Applied server-side during upload pipeline with sharp; configurable position/opacity |
+| Signed / time-limited URLs for image serving | Images can't be hot-linked or scraped by saving raw URL; forces each request through app | HIGH | Cloudflare R2 presigned URLs; requires Cloudflare Worker proxy to use with custom domain |
+| Multi-upload with drag-and-drop and batch processing | Dramatically reduces friction for adding photos; bulk resize/watermark on upload | MEDIUM | sharp for server-side processing; React dropzone on client |
+| Internal photo library (media manager) | Centralized view of all uploaded photos, reusable across layouts and projects | MEDIUM | DB-backed photo list; searchable/filterable by project or date |
+| TOTP two-factor authentication | Non-negotiable given prior hack; standard authenticator-app flow (Google Authenticator, etc.) | MEDIUM | otplib + qrcode; custom credential flow in Auth.js; QR code setup screen |
+| Directory-style project navigation (expandable tree) | Organizes a large body of work; clients can drill into specific series | MEDIUM | Sidebar tree component; project ordering drag-and-drop in admin |
+| Analytics dashboard (page views, origins, referrers) | Photographer can see what's resonating, where traffic comes from | MEDIUM | Cloudflare Web Analytics free tier covers most needs; supplement with custom DB logging if needed |
+| DevTools detection with content dimming | Raises the cost of scraping for non-technical attackers; pairs with other protections | LOW | Viewport-size change detection; reasonable deterrent, not a wall |
 
-### Anti-Features (Deliberately NOT Building)
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that seem good but create problems or don't align with minimalist photography portfolio vision.
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Screenshot / screen-capture blocking | Complete protection instinct; "block everything" | Technically impossible at browser level; creates hostile UX for legitimate visitors; CSS `user-select: none` and overlay divs only stop casual actions | Combine watermark + low-res display + legal copyright notice; accept that screenshots exist |
+| 100% DevTools block (hard block, crash browser) | Deters advanced scrapers | Determined user can always bypass; known bypass scripts exist publicly; aggressive detection breaks accessibility tools and extension users | Soft detection (dim content + warning banner) rather than hard block |
+| Client gallery / proofing system | Clients want to review and select photos | Multi-user access, sharing, commenting, download tracking — entire secondary product; out of scope | Not this portfolio; use a dedicated tool (Pixieset, Pic-Time) for client delivery |
+| E-commerce / print sales | Monetization opportunity | Payment processing, fulfillment, tax handling — massive scope; doesn't fit portfolio-only focus | Redirect interested buyers to external print-on-demand service |
+| Native video upload and hosting | Rich portfolio, shows motion work | Storage costs prohibitive on free tier; video transcoding is a separate engineering problem | Embed YouTube / Vimeo; video-as-embed block type in editor |
+| Real-time collaborative editing | Feels modern | Single user only; real-time sync adds infrastructure complexity (websockets / CRDT) for zero benefit | Single-user optimistic updates via SWR/React Query are sufficient |
+| AI auto-tagging or smart search | Discoverability | Adds external API cost and complexity; portfolio has limited images, not a stock library | Manual tags on upload if needed; defer to future |
+| Comment / guestbook system | Engagement | Requires moderation; spam; off-brand for professional portfolio | Contact form is sufficient |
 
-| Anti-Feature | Why Requested | Why Problematic | Alternative |
-|--------------|---------------|-----------------|-------------|
-| Autoplay Background Videos/Music | Creates "impressive" first impression | Visitors don't expect sound; autoplay is universally disliked; wastes bandwidth; violates UX best practices | Silent hero video is acceptable; let user click to play music/video |
-| Massive Portfolio (20+ galleries) | "Show all my work" instinct | Overwhelming; visitors get choice paralysis; dilutes impact of best work; slow loading | Curate ruthlessly; 3-5 strongest galleries; focus on specific genres |
-| Stock Template Images | Quick setup without photography | Undermines credibility immediately; template images signal "unprofessional"; misleads visitors | Require real photography for launch; placeholder-only if truly empty |
-| Real-Time Collaboration Editor | Sounds powerful | Adds complexity without clear value; most photographers are solo operators; introduces sync/conflict issues | Simpler: single admin editor with version history; no multi-user editing |
-| Full e-Commerce Integration | "Photographers should sell prints" | Adds shipping, payment complexity, support burden; not core to portfolio function; dilutes focus on work quality | Keep admin-only for future; or recommend integration with external print service |
-| Analytics Tracking (Heavy) | "Know who views your work" | Contradicts minimalist design philosophy; tracking script bloat; privacy concerns; photographers rarely use analytics actionably | Simple: server-side analytics, no client-side scripts; optional turnoff |
-| Blog/Articles Section | Extend content, engage visitors | Photographers don't maintain blogs consistently; old blog posts hurt credibility; doesn't convert clients | Focus: portfolio itself; link out to social if desired; no blog CMS |
-| Social Media Auto-Feed | Integrate Instagram/TikTok | Pulls focus away from curated portfolio; risk of inappropriate content leaking in; extra API dependencies | Recommend manual curation; external links to social if desired |
+---
 
 ## Feature Dependencies
 
 ```
-Photo Lightbox Viewer
-    └──requires──> Fast Image Loading
-                       └──requires──> Responsive Grid Gallery
-    └──requires──> Zoom & Pan
-    └──requires──> Next/Previous Navigation
-    └──requires──> Mobile Support
+[Block Grid Editor]
+    └──requires──> [Projects System] (each project has a grid)
+    └──requires──> [Photo Library] (images must exist before placing in grid)
+                       └──requires──> [Multi-Upload Pipeline]
+                                          └──requires──> [R2 Storage Integration]
+                                          └──enhances──> [EXIF Extraction] (extract on ingest)
+                                          └──enhances──> [Watermark Pipeline] (apply on ingest)
 
-Project Pages with Rich Layouts
-    └──requires──> 12-Column Grid Component
-    └──requires──> Metadata Storage (schema design)
-    └──requires──> Photo Lightbox Viewer (to view project photos full-screen)
+[Lightbox Viewer]
+    └──requires──> [Photo in Grid] (grid placement triggers lightbox)
+    └──enhances──> [EXIF Display] (optional panel inside lightbox)
 
-Inline Admin Editing
-    └──requires──> Editor State Management
-    └──requires──> Public View Rendering
-    └──requires──> Database Update Mechanism
-    └──conflicts──> Real-Time Collaboration Editor
+[Signed URL Serving]
+    └──requires──> [R2 Storage Integration]
+    └──requires──> [Cloudflare Worker Proxy] (presigned URLs expose raw R2 endpoint without worker)
+    └──conflicts──> [Open / public bucket URLs] (can't use both strategies simultaneously)
 
-Metadata Display in Lightbox
-    └──enhances──> Photo Lightbox Viewer
-    └──requires──> Structured Metadata (EXIF, location, date, description)
+[Content Protection Layer]
+    └──enhances──> [Signed URL Serving] (URL obfuscation)
+    └──enhances──> [Watermark Pipeline] (visible deterrent)
+    └──conflicts──> [Right-click on non-image elements] (CSS `pointer-events: none` overlay blocks legitimate interactions if applied globally)
 
-Storytelling Presentation
-    └──enhances──> Project Pages with Rich Layouts
-    └──requires──> Rich Text Editor for Descriptions
+[TOTP 2FA]
+    └──requires──> [Auth.js Credentials Provider] (2FA bolted onto credential flow)
+    └──requires──> [TOTP secret storage in DB] (per-user secret)
+
+[Analytics Dashboard]
+    └──independent──> all other features (can be added at any phase)
+    └──enhances──> [Cloudflare DNS/CDN] (Cloudflare Web Analytics free if already on Cloudflare)
+
+[Projects Directory Navigation]
+    └──requires──> [Projects System]
+    └──enhances──> [Block Grid Editor] (navigation leads to project grids)
 ```
 
 ### Dependency Notes
 
-- **Photo Lightbox Viewer requires Fast Image Loading:** Without optimized images, the lightbox experience breaks under load and frustrates users. Image optimization is non-negotiable.
-- **Fast Image Loading requires Responsive Grid Gallery:** Gallery must support lazy loading, image srcsets, and modern formats—all tied to rendering strategy.
-- **Inline Admin Editing requires careful state sync:** Public view must always reflect admin changes; unclear sync causes trust issues ("did my edit save?").
-- **Project Pages require 12-Column Grid Component:** The grid system must support flexible spans and dynamic layout; this is foundational.
-- **Metadata Display enhances but doesn't block:** Photographers might launch without metadata initially; add after core viewer is solid.
-- **Real-Time Collaboration conflicts with Inline Editing:** If multiple admins edit simultaneously, sync complexity explodes. Keep it single-user for MVP.
+- **Block Grid Editor requires Photo Library:** Placing an image block requires images to already exist in a managed library, not just be ad-hoc uploaded inline. Build the library and upload pipeline first.
+- **Signed URLs require Cloudflare Worker Proxy:** R2 presigned URLs use the native `*.r2.cloudflarestorage.com` endpoint. To serve from a custom domain while maintaining access control, a thin Cloudflare Worker must sit in front. Without this, either security is weaker (public bucket) or URLs expose the raw R2 endpoint.
+- **Watermark conflicts with crop:** The crop tool must run before watermarking. Pipeline order matters: upload → EXIF extract → crop (optional, user-triggered) → resize → watermark → store to R2.
+- **EXIF extraction is ingest-time only:** EXIF data is stripped when sharp re-encodes the image. Extract before processing; store to DB. Attempting to extract post-processing returns empty.
+- **DevTools detection conflicts with accessibility tools:** Screen readers and browser extensions use DevTools protocols. A hard block breaks these users. Soft detection (content dimming + message) is the safe upper bound.
+
+---
 
 ## MVP Definition
 
-### Launch With (v1)
+This is a subsequent milestone on an existing site. "MVP" here means the minimum to make the new milestone functional and shippable.
 
-Minimum viable product—what's needed to validate the photography portfolio concept and serve professional photographers.
+### Launch With (v1 of this milestone)
 
-- [x] **Responsive Masonry Gallery** — Table stakes; without this, site feels broken on mobile
-- [x] **Photo Lightbox Modal** — Core feature; photographers need full-screen, high-quality viewing; already mentioned in project context
-- [x] **Zoom & Pan in Lightbox** — Expected by users; photographers show detail shots that must be inspectable
-- [x] **Next/Previous Navigation** — Keyboard and button controls for browsing; essential UX
-- [x] **Mobile Touch Support** — Pinch-to-zoom, swipe navigation; non-negotiable for modern web
-- [x] **Fast Image Loading** — Lazy loading, WebP/AVIF support, responsive image sizes; affects every gallery view
-- [x] **Project/Portfolio Pages** — Curated project view with 12-column grid layout; differentiates from simple gallery
-- [x] **Inline Admin Editing** — Admin overlay matching public view exactly (project requirement); enables one-click updates
-- [x] **Grayscale-to-Color Hover** — Mentioned explicitly; low complexity, high visual impact
-- [x] **Clean Mobile UI** — Auto-hide controls, full-screen primary focus; mentioned in existing features
+- [ ] **Block grid editor with configurable columns and col/row spans** — core creative tool; everything else builds on this
+- [ ] **Projects system with create/edit/delete and directory navigation** — portfolio is useless without organized projects
+- [ ] **Multi-upload pipeline with sharp processing (resize, watermark, EXIF extract)** — photographer must be able to add work independently
+- [ ] **Photo library (internal media manager)** — required to populate grids; reuse images across projects
+- [ ] **Lightbox with keyboard navigation** — standard expectation; missing = incomplete
+- [ ] **Auth.js credentials + TOTP 2FA** — non-negotiable given prior hack; replaces Supabase auth
+- [ ] **Cloudflare R2 storage migration** — Supabase suspension forces this; unblocks auth migration
+- [ ] **Basic content protection layer** — right-click disable, drag disable, CSS overlay, low-res display; signed URLs via R2
 
 ### Add After Validation (v1.x)
 
-Features to add once core photo viewing and admin editing are solid and users validate the value.
-
-- [ ] **Metadata Display in Lightbox** — Camera settings, location, date; nice-to-have once viewing is polished
-- [ ] **Project Descriptions & Captions** — Rich text for project storytelling; enhances galleries once core layout is proven
-- [ ] **Theme Customization** — Custom color pickers or preset themes (theme toggle already exists; expand here)
-- [ ] **Download Optimization** — High-DPI export for clients; premium feature after v1
-- [ ] **Basic Analytics** — Server-side page views, top galleries; informational only
+- [ ] **EXIF display panel in lightbox** — adds depth; depends on extraction working reliably in v1
+- [ ] **Crop tool in upload flow** — UX polish; v1 can rely on pre-cropped uploads
+- [ ] **Cloudflare Worker proxy for signed URL serving with custom domain** — security hardening; technically complex, defer until R2 baseline works
+- [ ] **Analytics dashboard** — useful but not blocking; Cloudflare Web Analytics gives baseline immediately
+- [ ] **DevTools detection with content dimming** — deterrent layer; add after core is stable
 
 ### Future Consideration (v2+)
 
-Features to defer until product-market fit is established and photographer feedback guides priorities.
+- [ ] **Advanced watermark configurator** (position, opacity, text vs. image) — nice-to-have; v1 can use a fixed watermark config
+- [ ] **Bulk photo re-processing** (re-watermark, re-resize existing library) — only needed if watermark design changes
+- [ ] **Geographic analytics** — beyond Cloudflare's free tier; requires third-party or self-hosted solution
+- [ ] **AI auto-tagging** — exploratory; depends on API cost tolerance
 
-- [ ] **Client Proofing Gallery** — Private link, comments, selections; requires auth, collaboration features, notification system
-- [ ] **Print Integration** — Partner with print service or build e-commerce; adds significant complexity
-- [ ] **Multi-Language Support** — Photographer growth into international markets; low priority initially
-- [ ] **SEO Optimization** — Structured data, sitemaps, OG tags; important later but not core to MVP
-- [ ] **Social Media Export** — Optimize images for Instagram, TikTok, etc.; useful but not MVP-blocking
+---
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Photo Lightbox Modal | HIGH | MEDIUM | P1 |
-| Zoom & Pan in Lightbox | HIGH | MEDIUM | P1 |
-| Next/Previous Navigation | HIGH | LOW | P1 |
-| Fast Image Loading | HIGH | MEDIUM | P1 |
-| Responsive Masonry Gallery | HIGH | LOW | P1 |
-| Mobile Touch Support | HIGH | MEDIUM | P1 |
-| Project Pages with 12-Column Grid | HIGH | MEDIUM | P1 |
-| Inline Admin Editing | HIGH | HIGH | P1 |
-| Grayscale-to-Color Hover | MEDIUM | LOW | P1 |
-| Clean Mobile UI (Auto-Hide) | MEDIUM | LOW | P1 |
-| Metadata Display in Lightbox | MEDIUM | MEDIUM | P2 |
-| Project Descriptions & Captions | MEDIUM | MEDIUM | P2 |
-| Theme Customization | MEDIUM | LOW | P2 |
-| Download Optimization | MEDIUM | MEDIUM | P2 |
-| Basic Analytics | MEDIUM | LOW | P2 |
-| Client Proofing Gallery | MEDIUM | HIGH | P3 |
-| Print Integration | LOW | HIGH | P3 |
-| Multi-Language Support | LOW | MEDIUM | P3 |
-| Real-Time Collaboration Editor | LOW | HIGH | AVOID |
-| Massive Portfolio (20+ galleries) | LOW | MEDIUM | AVOID |
+| Block grid editor (col/row span) | HIGH | HIGH | P1 |
+| Projects system + directory nav | HIGH | MEDIUM | P1 |
+| Multi-upload + sharp pipeline | HIGH | MEDIUM | P1 |
+| Auth.js + TOTP 2FA | HIGH | MEDIUM | P1 |
+| R2 storage migration | HIGH | MEDIUM | P1 |
+| Photo library (media manager) | HIGH | MEDIUM | P1 |
+| Lightbox with keyboard nav | HIGH | LOW | P1 |
+| Basic content protection (overlay, disable drag/right-click) | MEDIUM | LOW | P1 |
+| EXIF extraction + storage | MEDIUM | LOW | P1 (done at ingest time with pipeline) |
+| EXIF display in lightbox | MEDIUM | LOW | P2 |
+| Crop tool in upload flow | MEDIUM | MEDIUM | P2 |
+| Signed URLs + Cloudflare Worker proxy | MEDIUM | HIGH | P2 |
+| Analytics dashboard | MEDIUM | LOW | P2 |
+| DevTools detection | LOW | LOW | P2 |
+| Watermark configurator UI | LOW | MEDIUM | P3 |
+| Geographic analytics | LOW | HIGH | P3 |
 
 **Priority key:**
-- **P1:** Must have for launch; table stakes or core differentiators
-- **P2:** Should have; add when MVP is validated and stable
-- **P3:** Nice to have; future consideration when bandwidth allows
-
-## Professional Photography Portfolio Benchmark
-
-Based on research of 2026 professional photography portfolio sites:
-
-### What Leading Photographers Include
-
-From research of sites like those showcased on SiteBuilderReport, DesignRush, and ExpertPhotography:
-
-1. **Minimal, Elegant Design** — Whitespace and typography emphasize images, not decoration
-2. **Clear Navigation** — About, Portfolio (multiple galleries), Investment/Pricing, Contact/Booking
-3. **High-Resolution Gallery Display** — Full-screen lightbox, zoomable images
-4. **Project/Series Context** — Work organized by theme, client type, or series with descriptions
-5. **Client Testimonials** — Trust signal; 1-3 short quotes from happy clients
-6. **Instagram Integration** (Optional) — Link to Instagram feed (not auto-embedded; user control)
-7. **Fast Load Times** — Photography sites live or die by performance; LCP <2.5s is table stakes
-8. **Contact/Booking Path** — Clear CTA, contact form, potentially booking calendar or investment pricing
-
-### What They Avoid
-
-1. **Autoplay media** — Explicitly noted as UX failure
-2. **Generic stock images** — Immediately signals unprofessionalism
-3. **Overwhelming galleries** — 3-5 strong galleries trump 20+ mediocre ones
-4. **Slow loading** — 32% bounce rate increase from 1→3 second load; 90% from 1→5 seconds
-5. **Unclear contact info** — Must always be accessible
-6. **Tiny thumbnails** — Visitors must want to click; small images discourage exploration
-
-## Photographer-Specific Insights
-
-Research from 2026 industry trends (Fstoppers, ProductionParadise, WPPI):
-
-### What Clients Now Expect
-
-1. **Authenticity Over Perfection** — Photographers showing personality, style consistency, and imperfection (film grain, soft focus) build stronger brands than overly polished work
-2. **Visual Language & Branding** — Photographers with cohesive visual style (backdrop choices, color palette, typography) position stronger in market
-3. **Modern, Trustworthy Branding** — Clients prefer minimalist, clear fonts and straightforward messaging over artistic complexity
-4. **Service Flexibility** — Photographers offering multiple services (photos + video, different genres) achieve greater success
-5. **Personal Service Differentiator** — In-home or studio viewings post-shoot can increase revenue by up to 20%
-
-### What Separates Good From Great Portfolios
-
-1. **Intentional Curation** — Not "all work," but curated story; theme or narrative adds depth
-2. **Consistent Visual Brand** — Color palette, typography, spacing choices signal professionalism and intentionality
-3. **Storytelling Context** — Brief narrative explaining the work (who, what, why) converts better than image dumps
-4. **No Generic Assets** — Every image must be real, owned, and represented
-
-## Sources
-
-- [SiteBuilderReport: Photography Portfolios: 25+ Well-Designed Examples (2026)](https://www.sitebuilderreport.com/inspiration/photography-portfolios)
-- [DesignRush: 9 Best Photography Portfolio Websites To Inspire You in 2026](https://www.designrush.com/best-designs/websites/trends/best-photography-portfolio-websites)
-- [ExpertPhotography: 25 Best Photography Portfolio Websites in 2026](https://expertphotography.com/photography-portfolio-websites/)
-- [jQueryScript: 10 Best Lightbox Gallery Plugins In JavaScript & CSS (2026 Update)](https://www.jqueryscript.net/blog/best-lightbox-gallery.html)
-- [PhotoSwipe Documentation](https://photoswipe.com/)
-- [PatternFly: Inline Edit Design Guidelines](https://www.patternfly.org/components/inline-edit/design-guidelines/)
-- [Adobe: Optimising Images for the Web: Best Practice Guide](https://www.adobe.com/uk/creativecloud/photography/discover/image-optimisation.html)
-- [RequestMetrics: How to Optimize Website Images: The Complete 2026 Guide](https://requestmetrics.com/web-performance/high-performance-images/)
-- [Fstoppers: 11 Predictions for the Photography Industry in 2026](https://fstoppers.com/opinion/11-predictions-photography-industry-2026-720319)
-- [ProductionParadise: Future-Proof Your Photography Career: How to Stand Out in 2026](https://blog.productionparadise.com/posts/future-proof-your-photography-career-how-to-stand-out-in-2026)
-- [Format Magazine: 8 Mistakes to Avoid Building a Photography Portfolio Website](https://www.format.com/magazine/resources/photography/8-mistakes-build-portfolio-website-photography)
-- [Designlab: 14 Common UX Portfolio Mistakes to Avoid for Career Success](https://designlab.com/blog/ux-portfolio-mistakes-to-avoid)
-- [UXPlaybook: UX Portfolio Mistakes: 11 Red Flags & How to Fix Them](https://uxplaybook.org/articles/11-common-ux-portfolio-mistakes-and-solutions)
+- P1: Must have for milestone launch
+- P2: Should have, add when possible
+- P3: Nice to have, future consideration
 
 ---
 
-*Feature research for: Professional photography portfolio with photo viewer, project pages, and admin CMS*
-*Research confidence: MEDIUM-HIGH (primary sources from 2026 industry reports, secondary verification via multiple photography portfolio analysis sites)*
+## Competitor Feature Analysis
+
+| Feature | Squarespace/Format | SmugMug/Zenfolio | This Project |
+|---------|-------------------|-----------------|--------------|
+| Grid editor flexibility | Medium (Fluid Engine snaps to grid, but limited block sizes) | Low (album templates only) | High (custom col/row span, photographer defines columns) |
+| Image protection | Basic (right-click disable, optional watermark) | Good (password galleries, watermark, download control) | High (watermark + overlay + signed URLs + DevTools detect) |
+| EXIF display | Not standard | Optional per-gallery setting | In lightbox panel, per-photo |
+| Photo management | Basic upload + organize | Robust (bulk upload, folders, keywords) | Targeted (upload pipeline, library, EXIF, watermark) |
+| 2FA admin auth | Yes (platform-level) | Yes (platform-level) | TOTP via Auth.js (self-hosted) |
+| Custom layout control | Medium (template-bound) | Low (album layout only) | High (block-based, photographer-defined) |
+| Analytics | Basic (built-in) | Good (visit tracking, referrers) | Cloudflare Web Analytics + optional custom |
+| Cost | $16–$40/month | $11–$42/month | Free tier (R2 + Vercel + Cloudflare) |
+
+---
+
+## Important Caveats on Image Protection
+
+Research consistently shows: **no client-side protection is absolute.** Key findings:
+
+1. **What works well:** Visible watermarks, low-resolution display versions, signed/expiring URLs, legal copyright notice, DMCA registration. These create real friction and legal recourse.
+
+2. **What is deterrence only:** Right-click disable, drag disable, CSS overlay, DevTools detection. These stop casual users, not determined scrapers. A browser's network tab or a screen recording bypasses all of these.
+
+3. **The practical threshold:** The goal is to raise the cost above "casual copy-paste" for visitors, and to ensure any stolen image carries a watermark that ties it back to the photographer. Full prevention is not achievable.
+
+4. **Signed URLs gotcha:** R2 presigned URLs cannot be used directly with a custom domain — they expose the raw `*.r2.cloudflarestorage.com` host. A Cloudflare Worker acting as a proxy is required to sign requests while serving from the custom domain. This adds meaningful complexity and should be treated as P2.
+
+---
+
+## Sources
+
+- [SmugMug image protection features](https://www.smugmughelp.com/hc/en-us/articles/18212607353108-Protect-my-images)
+- [Kinsta: How to protect images on your site](https://kinsta.com/blog/protect-images/)
+- [Cloudflare R2 presigned URLs docs](https://developers.cloudflare.com/r2/api/s3/presigned-urls/)
+- [Cloudflare Worker proxy for R2 access control](https://blog.dankying.com/en/posts/20250429-how-to-build-an-image-service-using-cloudflare-workers/)
+- [sharp Node.js image processing](https://sharp.pixelplumbing.com/)
+- [siteguard: DevTools detection library](https://github.com/luizbizzio/siteguard)
+- [Defeating DevTools Detection](https://blog.exploit.cat/defeating-devtools-detection/) (confirms all detection methods have bypasses)
+- [dnd-grid React](https://dnd-grid.com/)
+- [Cloudflare Web Analytics privacy-first](https://www.cloudflare.com/web-analytics/)
+- [TOTP in Next.js with NextAuth](https://dev.to/corbado/how-to-implement-totp-authentication-in-nextjs-secure-2fa-login-step-by-step-3aip)
+- [Beyondspace: Lightbox features for photographer sites](https://www.beyondspace.studio/blog/lightbox-features-ideal-for-a-photographer)
+- [Image scraping protection overview 2025](https://webcopyrightchecker.com/blog/image-scraping-protection-prevention)
+- [Photography portfolio website examples 2026](https://expertphotography.com/photography-portfolio-websites)
+
+---
+*Feature research for: Photography portfolio with block editor and image management admin*
+*Researched: 2026-03-10*

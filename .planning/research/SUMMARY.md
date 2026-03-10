@@ -1,231 +1,217 @@
 # Project Research Summary
 
-**Project:** Photography Portfolio with Admin CMS (Next.js 16)
-**Domain:** Professional photography portfolio with interactive photo viewer, project management, and inline admin editing
-**Researched:** 2026-02-12
-**Confidence:** HIGH for core stack and architecture, MEDIUM-HIGH for features and pitfalls
+**Project:** Mauro Guerrero Photography Portfolio
+**Domain:** Single-photographer portfolio with block-based grid editor, image management, self-hosted auth, and content protection
+**Researched:** 2026-03-10
+**Confidence:** HIGH
 
 ## Executive Summary
 
-Building a professional photography portfolio requires a tightly coordinated frontend with an admin CMS overlay. The research across technology stack, features, architecture, and pitfalls reveals a clear pattern: lightweight, battle-tested components for photo viewing (react-photo-view), sophisticated grid layout management (react-grid-layout v2), and seamless admin overlays using Next.js parallel routes. The biggest risk is not technical complexity but cascading failures from hydration mismatches, missing mobile support, and lacking persistence—all of which can silently destroy the user experience. The recommended approach prioritizes the photo viewer experience first (with rigorous mobile testing), then layers in admin functionality (with SSR guards), and finally tackles the complex grid editor (with version-aware conflict detection). Three critical pitfalls dominate: hydration mismatches in the admin overlay, missing pinch-to-zoom on mobile devices, and gallery performance collapse from unoptimized image loading. Addressing these upfront saves weeks of post-launch firefighting.
+This is a subsequent milestone on an existing Next.js 16 / React 19 / TypeScript / Drizzle ORM codebase — not a greenfield project. The existing app has the right foundation (dnd-kit, Zustand, Tiptap, Zod, AWS SDK already installed) but relies on two external services that must be replaced: Supabase Auth (suspends on inactivity, prior security concern) and Cloudinary (being replaced with Cloudflare R2, which is already wired in the AWS SDK). The core new capability is a block-based CSS grid editor where each block carries `colSpan` / `rowSpan` values — replacing the current masonry/layout-engine approach with native CSS Grid, which is the right primitive for this creative-control requirement.
 
-The portfolio itself is relatively straightforward—it's a gallery-first product where the images are the interface. The differentiator is the inline admin editing capability, which is architecturally complex because it requires rendering public views with overlay controls without navigation changes. This is solvable with Next.js 16's parallel routes and intercepting routes, but requires careful hydration management and state organization.
+The recommended approach prioritizes security migration first (auth + R2), then the image processing pipeline, then the grid editor, then the projects system, and finally public-facing polish. This order is dictated by hard dependencies: images cannot be placed in grid blocks until the upload pipeline and photo library exist; the photo library cannot exist without R2 being live; and the editor cannot safely ship until the auth layer is hardened. The photographer has been hacked before — two critical security pitfalls (middleware-only auth bypass via CVE-2025-29927, and plaintext TOTP secret storage) must be addressed before 2FA is enabled, not after.
+
+The most significant risk is false security: CSS right-click blocking and overlays are trivially bypassed. Real protection requires a private R2 bucket, server-side watermarks burned into images via Sharp on upload, and signed expiring URLs — all of which require the upload pipeline to be built correctly from the start. A second major risk is the dnd-kit variable-size block collision detection problem (confirmed open GitHub issues): using default `closestCenter` collision detection on a grid with mixed-span blocks will corrupt layout state. A custom occupancy-matrix approach is required and must be designed in from day one, not retrofitted.
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-The technology stack balances minimalism with production-readiness. For photo viewing, **react-photo-view** (1.2.7) is the clear choice: 7KB gzipped, zero dependencies, native gesture support (drag, pinch-to-zoom, two-finger zoom), spring animations, and perfect Cloudinary integration. It's more lightweight than react-photoswipe-gallery and avoids the unmaintained react-image-lightbox entirely. For grid layout editing, **react-grid-layout v2** (2.2.2) is production-ready with complete TypeScript support, hooks-based API, native 12-column support, responsive breakpoints, and server-side rendering compatibility. For email delivery, **Resend + react-email** is the modern choice—React component-based templates, seamless Next.js App Router integration, and no spam filter headaches when properly configured.
+The existing stack is strong and requires minimal additions. The core changes are replacements (Supabase → better-auth, Cloudinary → R2 direct upload) plus new additions for image processing (sharp, exifr) and anti-scraping (Upstash ratelimit). All recommended library versions were verified against npm on 2026-03-10.
 
-**Core technologies:**
-- **react-photo-view (1.2.7)**: Photo viewer lightbox with zoom/pan/rotation — chosen for zero dependencies, 7KB size, native mobile gesture support, and perfect Cloudinary compatibility
-- **react-grid-layout (2.2.2)**: 12-column responsive grid editor — chosen for TypeScript hooks API, breakpoint support, and production maturity
-- **Resend (6.9.2) + react-email**: Email delivery with React components — chosen for modern API, React-native design, and built-in dark mode support
-- **Zustand (5.0.11)**: Global state management — already in stack, perfect for photo viewer and editor state across routes
-- **Drizzle ORM**: Database operations — already in stack, use for layout and project persistence
-- **Cloudinary**: Image hosting and optimization — leverage for responsive image delivery via next/Image loader
-- **Supabase Auth**: Authentication — already configured, use for /admin route protection
+**Core technologies — new or changed:**
+- **better-auth 1.5.4**: Replaces Supabase auth — TypeScript-first, stable semver, built-in TOTP plugin, Drizzle adapter. Auth.js v5 is still in perpetual beta; lucia-auth was deprecated December 2024.
+- **sharp 0.34.5**: Server-side image processing (resize, watermark composite, WebP conversion) — 4–5x faster than jimp, Vercel-compatible, officially recommended by Next.js. Must be in Node.js runtime, not Edge.
+- **exifr 7.1.3**: EXIF extraction before Sharp strips metadata on re-encode. Must run on the raw buffer before processing.
+- **@upstash/ratelimit 2.0.8 + @upstash/redis 1.36.4**: Sliding-window rate limiting on image endpoints via Vercel Edge. In-memory rate limiting is useless on stateless Vercel functions.
+- **Cloudflare R2 via existing @aws-sdk**: Zero egress fees, S3-compatible, SDK already installed. Swap endpoint to `https://<account-id>.r2.cloudflarestorage.com`.
+- **Cloudflare Web Analytics**: Free, zero-infra, no cookies, no GDPR setup — script tag in root layout.
+- **react-image-crop 11.0.10**: Client-side crop UI (P2 feature, v1.x).
+
+**Remove:** `@supabase/supabase-js`, `@supabase/ssr`, `cloudinary`.
 
 ### Expected Features
 
-The feature landscape divides clearly into table stakes (what users expect), differentiators (what makes this portfolio stand out), and anti-features (what to deliberately avoid). **Table stakes** include the photo lightbox viewer (users won't forgive a portfolio that can't display images properly), zoom & pan (photographers need to inspect details), next/previous navigation (keyboard shortcuts critical for usability), responsive masonry grid (must work on mobile), fast image loading (slow loading kills credibility), and clean mobile UI (auto-hide controls during viewing). The portfolio has already implemented some of these well (grayscale-to-color hover, responsive design).
+The feature set has clear P1 / P2 / P3 tiers based on dependencies. Everything in P1 must ship together because users cannot meaningfully evaluate the portfolio otherwise.
 
-**Differentiators** are where competitive advantage lies: inline admin editing (edit content while viewing the public site with overlay controls), project pages with rich 12-column layouts (editorial control over composition), and metadata display in lightbox (camera settings, location, date build client confidence). Client proofing galleries and print integration belong in v2+ and add significant complexity not justified at launch.
+**Must have (P1 — table stakes + core differentiators):**
+- Block grid editor with configurable columns and col/row spans (1x1, 2x1, 2x5, etc.) — the central creative tool
+- Projects system with create/edit/delete and directory navigation
+- Multi-upload pipeline with Sharp processing (resize, watermark, EXIF extraction)
+- Photo library (internal media manager) — required before any block can hold an image
+- Lightbox with keyboard navigation — universal expectation
+- better-auth credentials + TOTP 2FA — non-negotiable given prior hack
+- Cloudflare R2 storage migration — Supabase suspension forces this
+- Basic content protection: right-click disable, drag disable, CSS overlay, low-res display, signed R2 URLs
 
-**Anti-features to avoid deliberately:** autoplay background videos (universally disliked, bandwidth waste), massive portfolios with 20+ galleries (choice paralysis, dilutes impact), real-time collaboration editor (sync complexity without clear value for solo photographer), heavy analytics tracking (contradicts minimalist philosophy), and generic blog sections (photographers don't maintain them, old posts hurt credibility).
+**Should have (P2 — add after P1 validated):**
+- EXIF display panel in lightbox
+- Crop tool in upload flow
+- Cloudflare Worker proxy for custom-domain signed URL serving
+- Analytics dashboard (Cloudflare Web Analytics gives baseline immediately)
+- DevTools detection with content dimming
 
-**MVP features (Phase 1-3):**
-- Responsive masonry gallery with lazy loading
-- Photo lightbox with zoom/pan and keyboard controls
-- Next/previous navigation within lightbox
-- Touch pinch-to-zoom on mobile (critical: test on real iOS/Android)
-- Project pages with 12-column grid layouts
-- Inline admin editing with overlay controls
-- Auto-save with version checking to prevent conflicts
+**Defer (v2+):**
+- Advanced watermark configurator (position, opacity, text vs. image)
+- Bulk photo re-processing
+- Geographic analytics beyond Cloudflare free tier
+- AI auto-tagging
+
+**Anti-features (do not build):** screenshot blocking (technically impossible), client proofing gallery, e-commerce/print sales, native video hosting, real-time collaborative editing.
 
 ### Architecture Approach
 
-The architecture leverages Next.js 16's advanced routing (route groups and parallel routes) to achieve the inline editing UX without traditional route navigation. Public views live in `(site)` route group, admin routes in `(editor)`, and the clever part: admin overlays use `/admin` with parallel routes and intercepting routes to render public content with edit controls via the `@edit` slot. This preserves URL state, context, and allows deep-linking the edit state.
+The architecture is a standard Next.js App Router setup with route groups: `(site)` for public SSR pages and `(editor)` for protected admin pages. The key structural decision is that images are stored in a library-first model: an `images` table in PostgreSQL stores metadata + R2 key prefix; blocks reference `imageId`, never direct URLs. This decouples layout data from storage URLs, making CDN migrations safe. The grid uses native CSS Grid with `grid-column: span N` / `grid-row: span N` — no JavaScript layout engine. The existing layout-engine module should be deleted.
 
-State management is sliced by feature: EditorStore for grid layout editing, ViewerStore for photo modal, AdminStore for overlay state. Components use Zustand hooks to access only what they need, avoiding prop drilling. The renderer layer separates MasonryGrid (home) from RowLayout (projects)—same Layout type, different rendering logic.
+**Major components:**
+1. **Image Pipeline** (`lib/pipeline/`) — Sharp on upload: extract EXIF → resize three variants (thumb 400px, medium 1200px, full 2400px) → composite watermark → convert to WebP → upload to R2. Runs synchronously in the API route (fine for single-user, low-frequency uploads).
+2. **Block Grid Canvas + GridRenderer** — CSS Grid container with `columns` from layout data; each block uses `grid-column: span N`. BlockCanvas handles dnd-kit drag/resize; GridRenderer is the shared component used in both editor and public site (same component, preventing render mismatch).
+3. **Auth Layer** (`lib/auth/`) — better-auth credentials provider + TOTP plugin. Middleware is the first gate; every API route and Server Component independently calls `auth()`. Never trust middleware alone (CVE-2025-29927).
+4. **Content Protection Layer** (`lib/protection/`) — signed URL proxy (`/api/images/[id]` generates 15-minute presigned R2 URLs, 302 redirects), CSS guards, devtools detection.
+5. **Zustand EditorStore** — single source of truth for editor state. Undo/redo via `zundo` temporal middleware; snapshot only on discrete actions (drag end, resize release, blur), capped at 50 entries.
 
-**Major components and their responsibilities:**
-1. **MasonryGrid** — renders home gallery in masonry columns with lazy-loaded images
-2. **RowLayout** — renders project gallery in 12-column responsive grid
-3. **PhotoViewer** — global lightbox modal for viewing/navigating images across any gallery
-4. **EditOverlay** — admin UI that appears over public content in /admin routes
-5. **EditorCanvas** — full editing UI for grid layout reordering and composition
-6. **Database layer** — Drizzle ORM with layout persistence, project metadata, image metadata
+**Data model additions:** `projects` table (FK → layouts), `images` table (photo library with EXIF JSON), `users` table (replaces Supabase, stores encrypted TOTP secret), `analytics_events` table. Extend `layouts` with `columns` and `gap` columns.
 
-**Critical architectural patterns:**
-- Route groups to separate public (site) from admin (editor) contexts with different layouts and auth
-- Parallel routes with @edit slot to render admin overlays without navigation changes
-- Intercepting routes to capture `/admin/.../*` and show modals
-- Shared photo viewer via Zustand to avoid prop drilling across galleries
-- Layout-specific renderers (MasonryGrid vs RowLayout) for different display rules
+### Critical Pitfalls
 
-### Critical Pitfalls to Avoid
+1. **Middleware-only auth (CVE-2025-29927)** — A single spoofed `x-middleware-subrequest` header bypasses all Next.js middleware, including 2FA. Prevention: pin Next.js ≥15.2.3, add `auth()` server-side checks inside every protected route handler, block the header at Cloudflare WAF. Must be fixed before 2FA creates a false sense of security.
 
-**1. Hydration mismatch with admin overlay** — Admin overlay renders conditionally based on Supabase auth state. On server, no auth context exists. On client, auth loads asynchronously. This breaks hydration if the overlay renders server-side. **Prevention:** Use dynamic import with `{ ssr: false }` for admin overlay, or defer rendering to useEffect after hydration completes. Never check auth during server render.
+2. **TOTP secret stored plaintext** — If the database is read (SQL injection, leaked backup), every 2FA secret is immediately usable — critical for a photographer who has been hacked. Prevention: AES-256-GCM encrypt before inserting; store IV alongside; rate-limit TOTP verify endpoint to 5 attempts/minute.
 
-**2. Image zoom modal not cleaning up event listeners** — Zoom modal adds wheel, mouse, and touch event listeners. If modal closes without removing these, they remain attached and interfere with page scrolling and other interactions, causing memory growth and janky UI. **Prevention:** Every `addEventListener()` must have matching `removeEventListener()` in useEffect cleanup. Use AbortController to cancel listeners. Test by opening/closing modal repeatedly and verifying no console errors.
+3. **File upload through Vercel serverless body (4.5 MB limit)** — Any code path that POSTs a file to a Next.js API route and forwards it to R2 will fail silently for files over 4.5 MB. Prevention: presigned PUT URL flow — API route generates URL, browser uploads directly to R2, API route receives completion callback and triggers processing.
 
-**3. Zoom component broken on mobile pinch gestures** — Zoom works with mouse wheel on desktop but pinch-to-zoom doesn't work on iOS Safari or Android. This silently breaks the core feature on the majority of users. **Prevention:** Test on actual iOS and Android devices (not Chrome DevTools emulation). Use react-zoom-pan-pinch v3.7.0+ (has pinch fixes). Provide fallback: visual pinch indicator, double-tap zoom alternative. Ensure images have explicit width/height to prevent iOS layout shifts.
+4. **dnd-kit default collision detection on variable-size blocks** — `closestCenter` / `closestCorners` assume uniform item sizes. Mixed `colSpan`/`rowSpan` blocks produce wrong drop targets and layout corruption (confirmed dnd-kit issues #720, #813, #1605). Prevention: implement a custom collision detection algorithm using an occupancy matrix (2D array of block IDs). Must be designed in from day one — retrofitting is expensive.
 
-**4. Cloudinary images not lazy-loading** — Gallery loads all images immediately even below-the-fold. With 20 4K images, page takes 15+ seconds and bandwidth explodes. **Prevention:** Add `loading="lazy"` to all below-the-fold images. Only preload hero/visible images. Defer zoom modal image loading. Test on slow 4G: FCP < 2s, LCP < 2.5s.
+5. **CSS-only content protection is not protection** — `pointer-events: none`, overlay divs, and right-click blocks are bypassed in 60 seconds via DevTools. Prevention: the real defense is (a) serving only medium-res variants publicly, (b) watermarks burned into files by Sharp on upload (not CSS), and (c) private R2 bucket with signed URLs. CSS deterrents are supplementary, not primary.
 
-**5. Grid layout editor not persisting** — User creates layout, refreshes page, layout disappears. State lives only in React, no database save. **Prevention:** Implement auto-save: debounce changes 300ms, POST to API, show "Saving..." then "Saved". Store layout JSON in database. Fetch on page load to hydrate editor.
-
-**6. Multi-admin simultaneous edits causing conflicts** — Two admins edit same project, each saves, second save overwrites first with no warning. **Prevention:** Add version/timestamp field to layouts. On save, include expected version. Server rejects if mismatch, returns conflict error. Show modal: "Project updated by Admin B. Reload to see new version?" For MVP, implement simple pessimistic locking: project locked for 60s on edit start.
-
-**7. 12-column grid breaking at mobile breakpoints** — Layout looks perfect at 1200px but broken on 768px tablet (6 columns) and 320px mobile (4 columns). Admin creates desktop layout unaware of how bad it looks on mobile. **Prevention:** Define breakpoints before building: Desktop 12 cols, Tablet 8 cols, Mobile 4 cols. Configure in react-grid-layout: `{ lg: { cols: 12 }, md: { cols: 8 }, sm: { cols: 4 } }`. Editor UI shows current breakpoint with preview buttons. Test: arrange desktop, resize to tablet, verify layout doesn't break.
+---
 
 ## Implications for Roadmap
 
-Based on research findings, the project naturally divides into three phases with clear dependencies and escalating complexity. The ordering follows architectural constraints (photo viewer must work before editor can meaningfully edit photos), performance requirements (lazy loading must be built in from start, not added later), and pitfall prevention (each phase addresses critical pitfalls specific to that feature set).
+Based on research, the dependency chain is unambiguous: auth and storage must be migrated before the upload pipeline can be built; the upload pipeline must exist before the photo library; the photo library must exist before the grid editor is useful; the projects system builds on top of a stable grid editor; content protection layers on top of all of the above.
 
-### Phase 1: Photo Viewer Foundation
-**Rationale:** Photo viewing is the core experience—a broken viewer destroys the entire portfolio. This phase must establish image performance, mobile gesture support, and keyboard accessibility before any admin features layer on top. It's also where most critical pitfalls live: missing lazy loading, mobile pinch broken, incorrect image sizing causing layout shift, event listener cleanup.
+### Phase 1: Foundation — Auth + Storage Migration
 
-**Delivers:** A production-ready photo gallery experience
-- Responsive masonry gallery on home with lazy-loaded images
-- Photo lightbox modal with zoom, pan, and rotation
-- Keyboard controls (arrow keys, ESC, etc.)
-- Touch pinch-to-zoom on mobile (tested on real devices)
-- Next/previous navigation
-- Metadata display optional (can defer to v1.1)
+**Rationale:** Everything else depends on reliable auth (no Supabase suspension) and working R2 storage. This phase eliminates the two external-service dependencies. It is also where the two most critical security pitfalls live — CVE-2025-29927 and plaintext TOTP secrets — which must be resolved before 2FA adds a false sense of security.
 
-**Features:** Photo Lightbox Viewer, Zoom & Pan, Next/Previous Navigation, Responsive Grid Gallery, Fast Image Loading, Mobile Support, grayscale-to-color hover
-**Stack:** react-photo-view, Cloudinary, react-grid-layout for masonry layout
-**Avoids:** Hydration mismatch (client-only viewer), event listener leaks (proper cleanup), mobile pinch broken (test on real devices), unoptimized images (lazy loading in), image sizing shifts (explicit width/height)
+**Delivers:** better-auth credentials + TOTP 2FA replacing Supabase; R2 client utilities + presigned URL generation; DB schema migration (extend layouts, add projects/images/users tables); Next.js ≥15.2.3 upgrade; Cloudflare WAF rule blocking `x-middleware-subrequest`.
 
-**Research flags:** None—react-photo-view is battle-tested, patterns well-documented. Standard implementation.
+**Features addressed:** Secure admin login (TOTP 2FA), R2 storage migration.
 
-### Phase 2: Admin Overlay & Authentication
-**Rationale:** Once the photo viewer works beautifully, layer in admin controls to edit content. This phase requires careful SSR handling (hydration guards) and session management (Page Visibility API for background tabs). It's architecturally more complex than Phase 1 but less feature-rich.
+**Pitfalls to avoid:** Middleware-only auth (CVE-2025-29927), plaintext TOTP secret storage, R2 CORS misconfiguration (configure via Wrangler CLI, not dashboard).
 
-**Delivers:** Inline editing capability for portfolio content
-- Authentication with Supabase (already configured)
-- Admin overlay routes using parallel routes + intercepting routes
-- Edit mode toggle on public pages
-- Edit project layout modal (basic text/order changes)
-- Save/discard changes with optimistic UI
-- Session refresh when returning from background tab
+### Phase 2: Image Pipeline + Photo Library
 
-**Uses:** Zustand for admin state, Supabase Auth (RLS for security), next/Image with Cloudinary, Next.js parallel routes
-**Implements:** AdminLayout with @edit slot, EditOverlay component, visibility state management
-**Avoids:** Hydration mismatch (dynamic import with ssr:false), stale sessions (visibilitychange listener), admin UI in public CSS (server-side auth check only)
+**Rationale:** Blocks cannot hold images until photos are uploaded, processed, and catalogued. This phase builds the ingest pipeline that all subsequent editor work depends on.
 
-**Research flags:**
-- **Parallel routes pattern:** Verify intercepting routes correctly capture `/admin/[slug]/edit` without full page reload
-- **Session management:** Test Page Visibility API integration with Supabase auth state
+**Delivers:** Sharp pipeline (EXIF extract → resize three variants → watermark → WebP → R2); presigned PUT URL upload flow (bypasses Vercel 4.5 MB limit); `/api/images/[id]` signed URL proxy; photo library UI in admin; R2 private bucket confirmed.
 
-### Phase 3: Grid Layout Editor & Persistence
-**Rationale:** The most complex phase—building an editor that lets admins customize 12-column layouts for project pages. This phase must handle responsive breakpoints, persistence with auto-save, version-aware conflict detection for multiple admins, and comprehensive mobile testing across tablet and phone.
+**Features addressed:** Multi-upload pipeline, photo library (media manager), EXIF extraction at ingest, visible watermarks burned into files.
 
-**Delivers:** Full grid layout editing for project pages
-- 12-column responsive grid editor with drag-drop reordering
-- Breakpoint definitions: Desktop (12), Tablet (8), Mobile (4)
-- Auto-save with debouncing and version checking
-- Conflict detection when multiple admins edit simultaneously
-- Undo/redo support (optional but recommended)
-- Grid item property editor (size, position, type)
-- Responsive preview in editor UI
+**Pitfalls to avoid:** Synchronous upload through Vercel serverless (use presigned URL flow), Sharp binary mismatch on Vercel (must be Linux x64 build), EXIF extraction must happen before Sharp re-encodes (strips EXIF), loading full-res images in editor previews (use thumb variant).
 
-**Features:** Project Pages with Rich Layouts, Inline Admin Editing (grid portion), Metadata Display optional, Storytelling Presentation (captions)
-**Stack:** react-grid-layout with breakpoint config, Zustand for editor state, Drizzle for layout persistence, Resend for notification emails on conflicts (optional)
-**Implements:** EditorCanvas, GridItem with drag-drop, layout versioning in database
-**Avoids:** Breakpoint bugs (define all at start), lost edits (auto-save), conflicts (version checking), image sizing (explicit dimensions on all grid items)
+### Phase 3: Block Grid Editor
 
-**Research flags:**
-- **Responsive breakpoints:** Verify layout doesn't break at 768px and 320px. Test on actual tablet and phone.
-- **Grid state persistence:** Validate auto-save timing and conflict resolution UX.
-- **Multi-admin UX:** Test simultaneous edits scenario, verify conflict messaging is clear.
+**Rationale:** With images in the library and auth stable, the grid editor is buildable. This is the highest-complexity phase (custom collision detection, occupancy matrix, undo/redo infrastructure). It must be built before the projects system, which depends on a working per-project grid.
+
+**Delivers:** GridRenderer (shared between editor and public site — single component), BlockCanvas + BlockItem with colSpan/rowSpan support, dnd-kit custom collision detection with occupancy matrix, resize handles, Zustand EditorStore with zundo undo/redo (capped, discrete snapshots), photo library drag-into-block, column count control in toolbar.
+
+**Features addressed:** Block grid editor with configurable columns and col/row spans, photo library integration, editor preview parity with public site.
+
+**Pitfalls to avoid:** dnd-kit default collision detection on variable-size blocks (must use occupancy matrix from the start), unbounded undo/redo history (cap at 50, snapshot only on discrete actions), editor/public render mismatch (shared GridRenderer component), Zustand subscriptions on every cell (use subscribeWithSelector), Framer Motion layout animations during drag (disable during drag, restore on drop), unsaved-changes navigation loss.
+
+### Phase 4: Projects System + Public Site
+
+**Rationale:** With the grid editor stable, per-project layouts are a straightforward extension. Public pages complete the visitor-facing experience.
+
+**Delivers:** Projects DB CRUD + API routes, project directory navigation (expandable sidebar), per-project grid editor page, public `/projects/[slug]` pages, lightbox with keyboard navigation and ARIA, homepage grid updated to new GridRenderer.
+
+**Features addressed:** Projects system, directory navigation, public project pages, lightbox viewer, mobile-responsive layout.
+
+**Pitfalls to avoid:** Editor/public render mismatch (already solved in Phase 3 with shared component), lightbox keyboard nav not announced to screen readers (aria-label, role="dialog", aria-live).
+
+### Phase 5: Content Protection + Polish
+
+**Rationale:** Protection layers (JS guards, DevTools detection, full signed URL architecture) are best added last, after the image serving and public rendering are stable. Adding them early creates noise before the core is solid.
+
+**Delivers:** JS guards (right-click, drag, selection disable), DevTools detection with content dimming, Cloudflare Worker proxy for custom-domain signed URLs (P2), EXIF display in lightbox (P2), Cloudflare Web Analytics script embed, site management from admin (bio, contact).
+
+**Features addressed:** Content protection layer, DevTools detection, EXIF display in lightbox, analytics.
+
+**Pitfalls to avoid:** CSS-only protection (watermarks and private R2 bucket are the real defense — already done in Phase 2), public R2 URLs in page source (verify signed URL proxy is working before shipping), watermark as CSS overlay (already avoided by burning into file in Phase 2).
 
 ### Phase Ordering Rationale
 
-The three-phase structure follows both architectural and risk-management principles:
-
-1. **Phase 1 first** because viewer is the MVP. Without it, the portfolio is unusable. Building it first unblocks everything that depends on it (admin can't meaningfully edit photos without a working viewer). Phase 1 also contains the highest-impact pitfalls that are cheaper to fix early: lazy loading, mobile gestures, image sizing.
-
-2. **Phase 2 before Phase 3** because admin overlay authentication and route setup must be in place before the grid editor can save to protected API routes. The parallel routes pattern for admin overlays is foundational for edit mode UX in Phase 3.
-
-3. **Phase 3 last** because it's the most complex and least MVP-critical. A photographer can launch with just the viewer (Phase 1) and basic edit capabilities (Phase 2). The sophisticated 12-column grid editor is a differentiator, not table stakes.
-
-**Dependency resolution:**
-- Phase 1's lazy loading and mobile testing uncover performance patterns used in Phase 3's grid editor
-- Phase 2's auth middleware and overlay routes provide the foundation for Phase 3's edit state management
-- Phase 1's Zustand stores (ViewerStore) precede Phase 2's AdminStore which precedes Phase 3's EditorStore—each layer depends on state management patterns established before it
+- **Auth before everything:** Supabase inactivity suspension is a live operational problem. Every subsequent feature needs protected routes.
+- **R2 + pipeline before editor:** Blocks need images; images need a pipeline; the pipeline needs R2 CORS working and verified.
+- **Custom collision detection in Phase 3, not Phase 4:** Retrofitting grid coordinate logic after the editor is feature-complete is a major rewrite. Build it correctly once.
+- **Projects after editor:** Per-project grids are instances of the grid editor; the editor must be stable first.
+- **Protection last (except watermarks):** Watermarks and private bucket are in Phase 2 (ingest-time decisions). JS/CSS deterrents and the Cloudflare Worker proxy are polish layers that don't block core functionality.
 
 ### Research Flags
 
-**Phase 1 — Photo Viewer Foundation:**
-Standard patterns, no research needed. React-photo-view is battle-tested, Cloudinary integration is well-documented, lazy loading is native HTML. Focus is execution and mobile testing (real devices required).
+Phases likely needing deeper research during planning:
+- **Phase 3 (Grid Editor):** Custom dnd-kit collision detection for variable-size CSS Grid blocks is under-documented; the occupancy matrix approach needs prototyping before full implementation. Consider a spike in planning.
+- **Phase 5 (Cloudflare Worker proxy):** Wiring a Cloudflare Worker as a proxy in front of R2 for custom-domain signed URL serving is technically detailed; confirm the specific Worker binding pattern for the account setup before committing to a sprint.
 
-**Phase 2 — Admin Overlay & Authentication:**
-Moderate research needed:
-- Parallel routes with intercepting routes: Next.js 16 documentation is clear, but actual implementation patterns in production apps are limited. Research needed on handling deep-linking edge cases.
-- Page Visibility API + Supabase auth: Supabase has known issues with session handling in backgrounded tabs (identified in PITFALLS.md). Research needed on best practices for page visibility integration.
+Phases with standard patterns (skip research-phase):
+- **Phase 1 (Auth + Storage):** better-auth + Drizzle adapter is well-documented; R2 presigned URL generation is official Cloudflare docs; straightforward migration.
+- **Phase 2 (Image Pipeline):** Sharp + R2 upload via presigned URL is a well-established pattern with official sources.
+- **Phase 4 (Projects + Public Site):** Standard Next.js App Router CRUD + SSR pages; no novel patterns.
 
-**Phase 3 — Grid Layout Editor & Persistence:**
-Significant research needed:
-- Responsive breakpoint UX: React-grid-layout docs cover configuration, but real-world UX for editing multiple breakpoints is sparse. Research needed on how professional page builders handle this.
-- Multi-admin conflict resolution: Version checking + real-time sync are competing patterns. Research needed on which approach suits this use case (collaborative vs. pessimistic locking).
-- Grid item layout algorithms: Intelligent row-breaking and responsive spanning logic isn't trivial. May need custom implementation beyond react-grid-layout's built-in features.
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| **Stack** | HIGH | Recommendations backed by official docs (react-photo-view, react-grid-layout, Resend), verified against project constraints (React 19, Next.js 16, TypeScript). Alternatives analysis thorough. |
-| **Features** | MEDIUM-HIGH | Table stakes derived from professional photography portfolio benchmarks (SiteBuilderReport, ExpertPhotography, Format Magazine). MVP definition aligns with industry research. Differentiators validated against competitive landscape. Anti-features supported by UX research. Minor uncertainty on exact metadata field requirements. |
-| **Architecture** | HIGH | Next.js routing patterns (route groups, parallel routes, intercepting routes) are official and well-documented. State management approach (Zustand slicing) proven in production apps. Component responsibilities clearly aligned with feature requirements. Database schema inferred from layout complexity but not validated against actual data volume. |
-| **Pitfalls** | MEDIUM | 10 pitfalls identified with prevention strategies. HIGH confidence in Pitfalls 1-3 and 5-7 (documented issues in official docs, community discussions, GitHub issues). MEDIUM confidence in Pitfalls 4 (Supabase session handling) and 8-10 (grid editor edge cases, multi-admin scenarios) where real-world production examples are sparse. Pitfalls derived from domain-specific research (photography portfolio research, lightbox comparison articles, grid editor analysis). Some pitfalls inferred from related domains (general React performance, general concurrent edit patterns). |
+| Stack | HIGH | All library versions verified via npm on 2026-03-10; official docs confirmed for R2, better-auth, sharp. One MEDIUM source: Upstash ratelimit Edge blog post, not official docs — but the pattern is widely confirmed. |
+| Features | MEDIUM-HIGH | Core features HIGH (photography portfolio conventions well-established). Protection nuances MEDIUM — signed URL custom-domain requirement via Cloudflare Worker is confirmed in community sources, not official docs. |
+| Architecture | HIGH | Existing codebase analyzed; patterns verified against current library docs. Build order derived from hard dependency chain, not opinion. |
+| Pitfalls | HIGH | CVE-2025-29927 verified against three independent security research sources. dnd-kit collision issues confirmed in tracked GitHub issues. Vercel 4.5 MB limit from official Vercel docs. TOTP encryption from security best-practice references. |
 
-**Overall confidence:** HIGH for getting the project built and shipped. MEDIUM for predicting exactly how users will interact with admin features and grid editor—Phase 2 and 3 may need iteration based on real usage.
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-1. **Cloudinary image metadata strategy** — Research defined lazy loading and optimization but not how to efficiently store/retrieve EXIF data, image dimensions, and alt text. During Phase 1 planning, validate schema for image metadata table.
-
-2. **Mobile breakpoint UX details** — Research defined breakpoints (12/8/4 columns) but not how editor UI shows/switches between them. During Phase 3 planning, research page builder UX patterns (Webflow, Framer) for breakpoint editing.
-
-3. **Conflict resolution UX** — Research identified version checking as solution but not the exact user messaging or workflow when conflicts occur. During Phase 3 planning, user test conflict scenarios to validate messaging is clear.
-
-4. **Supabase session reliability** — PITFALLS.md notes session issues in Jan 2026 but current status unknown. Before Phase 2 implementation, verify Supabase auth stability in current version and test Page Visibility API integration thoroughly.
-
-5. **Scale assumptions** — Architecture assumes single photographer (1 admin) or small team. If scale grows to 100+ admins editing simultaneously, real-time sync (WebSockets) may be necessary vs. current version-checking approach. Phase 3 should document this boundary.
-
-6. **Client proofing gallery** — FEATURES.md defers this to v2+ but marked as HIGH complexity. Before v2 planning, research whether to build in-app or integrate external service (like Cloudinary's proofing tools or dedicated services like Frame.io).
-
-## Sources
-
-### Primary Sources (HIGH confidence)
-
-- **[react-photo-view Documentation](https://react-photo-view.vercel.app/en-US/docs/getting-started)** — Official docs, verified API, version 1.2.7 tested
-- **[react-grid-layout GitHub Releases](https://github.com/react-grid-layout/react-grid-layout/releases)** — Official repository, v2.2.2 verified as latest, TypeScript support confirmed
-- **[Resend NPM](https://www.npmjs.com/package/resend)** — Official package, version 6.9.2, Next.js App Router integration
-- **[Next.js 16 Route Groups Documentation](https://nextjs.org/docs/app/api-reference/file-conventions/route-groups)** — Official Next.js docs
-- **[Next.js 16 Parallel Routes Documentation](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-routes)** — Official Next.js docs
-
-### Secondary Sources (MEDIUM confidence)
-
-- **[SiteBuilderReport: Photography Portfolios (2026)](https://www.sitebuilderreport.com/inspiration/photography-portfolios)** — Professional portfolio analysis, 25+ examples
-- **[ExpertPhotography: 25 Best Photography Portfolio Websites (2026)](https://expertphotography.com/photography-portfolio-websites/)** — Industry benchmark
-- **[DesignRush: Best Photography Portfolio Websites (2026)](https://www.designrush.com/best-designs/websites/trends/best-photography-portfolio-websites)** — Design analysis
-- **[Format Magazine: Portfolio Mistakes to Avoid](https://www.format.com/magazine/resources/photography/8-mistakes-build-portfolio-website-photography)** — Industry best practices
-- **[Zustand Official Docs - Slices Pattern](https://zustand.docs.pmnd.rs/guides/slices-pattern)** — State management patterns
-- **[LogRocket: Comparing Top React Lightbox Libraries](https://blog.logrocket.com/comparing-the-top-3-react-lightbox-libraries/)** — Library comparison analysis
-- **[Fstoppers: Photography Industry Predictions (2026)](https://fstoppers.com/opinion/11-predictions-photography-industry-2026-720319)** — Industry trends
-
-### Tertiary Sources (MEDIUM-LOW confidence, needs validation)
-
-- **[Supabase Auth Troubleshooting Documentation](https://supabase.com/docs/guides/auth/troubleshooting)** — Session issues noted but may not reflect current version stability
-- **[Next.js Hydration Error Documentation](https://nextjs.org/docs/messages/react-hydration-error)** — General guidance, domain-specific application needs testing
-- **[React Zoom Pan Pinch GitHub Issues](https://github.com/BetterTyped/react-zoom-pan-pinch/issues)** — Community-reported mobile issues, not officially confirmed as resolved in v3.7.0+
+- **Cloudflare Worker proxy for signed URL serving (Phase 5):** The pattern of using a Worker in front of R2 for custom-domain access control is confirmed conceptually, but the specific Worker binding syntax for this account's R2 setup needs validation during Phase 5 planning. Community tutorial exists; official binding docs should be cross-referenced.
+- **better-auth TOTP encryption at rest:** better-auth's built-in TOTP plugin stores the secret in the DB column it manages. Confirm whether the plugin supports an encryption hook before the auth migration starts, or whether the encryption wrapper must be applied at the Drizzle layer manually.
+- **Sharp binary on Vercel with Next.js 16:** Sharp 0.34.5 with Vercel is confirmed working, but with Next.js 16 (released late 2025), confirm `serverComponentsExternalPackages` or equivalent config to prevent Sharp native bindings from being bundled incorrectly.
 
 ---
 
-*Research completed: 2026-02-12*
-*Synthesized by: Claude Opus 4.6*
-*Ready for roadmap planning: YES*
+## Sources
+
+### Primary (HIGH confidence)
+
+- `npm show better-auth version` → 1.5.4 (verified 2026-03-10)
+- `npm show sharp version` → 0.34.5 (verified 2026-03-10)
+- `npm show exifr version` → 7.1.3 (verified 2026-03-10)
+- `npm show otpauth version` → 9.5.0 (verified 2026-03-10)
+- `npm show react-image-crop version` → 11.0.10 (verified 2026-03-10)
+- `npm show @upstash/ratelimit version` → 2.0.8 (verified 2026-03-10)
+- [Cloudflare R2 Presigned URLs](https://developers.cloudflare.com/r2/api/s3/presigned-urls/)
+- [Cloudflare R2 CORS Official Docs](https://developers.cloudflare.com/r2/buckets/cors/)
+- [Better Auth Next.js integration](https://better-auth.com/docs/integrations/next)
+- [sharp Vercel deployment](https://nextjs.org/docs/messages/install-sharp)
+- [Cloudflare Web Analytics](https://developers.cloudflare.com/web-analytics/about/)
+- CVE-2025-29927: [ProjectDiscovery](https://projectdiscovery.io/blog/nextjs-middleware-authorization-bypass), [Datadog Security Labs](https://securitylabs.datadoghq.com/articles/nextjs-middleware-auth-bypass/), [Akamai](https://www.akamai.com/blog/security-research/march-authorization-bypass-critical-nextjs-detections-mitigations)
+- dnd-kit collision issues: [GitHub #720](https://github.com/clauderic/dnd-kit/issues/720), [GitHub #813](https://github.com/clauderic/dnd-kit/issues/813), [GitHub #1605](https://github.com/clauderic/dnd-kit/discussions/1605)
+- [Vercel Functions Limits](https://vercel.com/docs/functions/limitations)
+
+### Secondary (MEDIUM confidence)
+
+- [Upstash Ratelimit for Next.js Edge](https://upstash.com/blog/edge-rate-limiting) — Edge middleware rate limiting pattern
+- [Auth.js 2FA example](https://github.com/bharathvaj-ganesan/next-auth-2fa-example) — TOTP session state pattern
+- [Cloudflare Worker R2 proxy](https://blog.dankying.com/en/posts/20250429-how-to-build-an-image-service-using-cloudflare-workers/) — Custom-domain signed URL serving
+- [exifr GitHub](https://github.com/MikeKovarik/exifr) — Buffer input, partial reads
+
+### Tertiary (LOW confidence)
+
+- None — no findings depend on single unverified sources.
+
+---
+*Research completed: 2026-03-10*
+*Ready for roadmap: yes*

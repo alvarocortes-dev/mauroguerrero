@@ -1,624 +1,454 @@
 # Architecture Research
 
-**Domain:** Photography portfolio with admin CMS
-**Researched:** 2026-02-12
-**Confidence:** HIGH
+**Domain:** Single-user photography portfolio with block-based grid editor, image processing pipeline, and content protection
+**Researched:** 2026-03-10
+**Confidence:** HIGH (existing codebase analyzed + verified against current library docs and ecosystem)
+
+---
 
 ## Standard Architecture
 
 ### System Overview
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                         Next.js 16 App Router                          │
-├────────────────────────────────────────────────────────────────────────┤
-│  Route Groups & Parallel Routes                                        │
-│  ┌──────────────────────────────────────┬──────────────────────────┐   │
-│  │  (site) - Public Gallery View        │  (editor) - Auth Routes  │   │
-│  │  ├─ page.tsx (Home w/ masonry)       │  ├─ login/page.tsx       │   │
-│  │  ├─ projects/[slug]/page.tsx         │  ├─ editor/page.tsx      │   │
-│  │  │  (12-col row layout)              │  └─ layout.tsx           │   │
-│  │  └─ layout.tsx (site nav)            │                          │   │
-│  └──────────────────────────────────────┴──────────────────────────┘   │
-│                                                                          │
-│  Admin Overlay Pattern (Proposed)                                       │
-│  ┌────────────────────────────────────────────────────────────────┐    │
-│  │  /admin - Parallel Routes with @edit slot                     │    │
-│  │  ├─ page.tsx (routes to (site) content)                       │    │
-│  │  ├─ projects/[slug]/page.tsx (routes to (site) content)       │    │
-│  │  └─ @edit/(.)*/page.tsx (intercepted edit overlays)           │    │
-│  └────────────────────────────────────────────────────────────────┘    │
-├────────────────────────────────────────────────────────────────────────┤
-│                         Client State Layer (Zustand)                    │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐     │
-│  │  EditorStore     │  │  ViewerStore     │  │  AdminStore      │     │
-│  │ (item selection) │  │ (photo modal)    │  │ (overlay state)  │     │
-│  │ (layout edits)   │  │ (index, gallery) │  │ (edit mode)      │     │
-│  │ (save state)     │  │                  │  │ (dirty state)    │     │
-│  └──────────────────┘  └──────────────────┘  └──────────────────┘     │
-│       ↓                       ↓                       ↓                 │
-├───────┴───────────────────────┴───────────────────────┴─────────────────┤
-│                    React Components                                     │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐               │
-│  │ Renderer │  │ PhotoView│  │EditOverla│  │RowLayout│               │
-│  │(masonry) │  │ (modal)  │  │  (edit)  │  │ (12col) │               │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘               │
-├────────────────────────────────────────────────────────────────────────┤
-│                    Data & Services Layer                                │
-│  ┌────────────────────┐  ┌────────────────────┐                        │
-│  │ Database Layer     │  │ External Services  │                        │
-│  │ (Drizzle ORM)      │  │ (Cloudinary,       │                        │
-│  │ ├─ layouts table   │  │  Supabase Auth)    │                        │
-│  │ ├─ projects table  │  │                    │                        │
-│  │ └─ images table    │  │                    │                        │
-│  └────────────────────┘  └────────────────────┘                        │
-└────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         PUBLIC SITE (SSR)                            │
+│  ┌─────────────┐  ┌──────────────┐  ┌────────────┐  ┌────────────┐  │
+│  │  Homepage   │  │   Projects   │  │  Project   │  │  Lightbox  │  │
+│  │  Grid View  │  │  Directory   │  │  Grid View │  │  Viewer    │  │
+│  └──────┬──────┘  └──────┬───────┘  └─────┬──────┘  └─────┬──────┘  │
+│         └────────────────┴────────────────┴───────────────┘         │
+│                                  │                                   │
+│                       Content Protection Layer                       │
+│          (signed URLs, low-res proxy, overlay, JS guards)            │
+└──────────────────────────────────┬───────────────────────────────────┘
+                                   │
+┌──────────────────────────────────▼───────────────────────────────────┐
+│                         API LAYER (Route Handlers)                   │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌───────────────┐  │
+│  │  /api/     │  │  /api/     │  │  /api/     │  │  /api/        │  │
+│  │  layouts   │  │  upload    │  │  images    │  │  analytics    │  │
+│  └────────────┘  └────────────┘  └────────────┘  └───────────────┘  │
+└──────────┬────────────────┬───────────────┬──────────────────────────┘
+           │                │               │
+┌──────────▼──────┐  ┌──────▼──────┐  ┌────▼─────────────────────────┐
+│  AUTH LAYER     │  │  IMAGE      │  │  DATA LAYER                  │
+│  (Auth.js v5 +  │  │  PIPELINE   │  │  ┌──────────┐  ┌──────────┐  │
+│   TOTP/2FA +    │  │  (Sharp:    │  │  │ Drizzle  │  │Cloudflare│  │
+│   middleware)   │  │  resize,    │  │  │   ORM    │  │    R2    │  │
+└─────────────────┘  │  watermark, │  │  │(Postgres)│  │ Storage  │  │
+                     │  EXIF,      │  │  └──────────┘  └──────────┘  │
+                     │  variants)  │  └─────────────────────────────-─┘
+                     └─────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                     EDITOR (Client-Side, /editor/*)                  │
+│  ┌─────────────┐  ┌──────────────┐  ┌────────────┐  ┌────────────┐  │
+│  │  Block Grid │  │  Zustand     │  │  Photo     │  │  Project   │  │
+│  │  Canvas     │  │  Editor Store│  │  Library   │  │  Manager   │  │
+│  └─────────────┘  └──────────────┘  └────────────┘  └────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | Typical Implementation |
-|-----------|----------------|------------------------|
-| **Renderer** | Renders layout items (images, text, spacers) in selected layout mode | Client component, Framer Motion animations |
-| **MasonryGrid** | HOME specific - arranges items in masonry columns | CSS Grid or column-based flex layout |
-| **RowLayout** | PROJECT specific - arranges items in 12-column row grid | CSS Grid with 12 columns, intelligent row breaks |
-| **PhotoViewer** | Modal lightbox for viewing/navigating photos across any gallery | Client component, Zustand state, keyboard nav |
-| **EditOverlay** | Admin UI controls appearing over gallery content in /admin routes | Client component, overlaid buttons/panels |
-| **EditorCanvas** | Full editing UI for structure/reordering items | Client component with drag-drop (dnd-kit) |
+| Component | Responsibility | Communicates With |
+|-----------|---------------|-------------------|
+| Block Grid Canvas | Render drag/drop/resize grid with column-span blocks | Zustand EditorStore, dnd-kit |
+| Grid Renderer | Display grid layouts (both editor and public) | Layout data, Next.js Image |
+| Zustand EditorStore | Single source of truth for editor state (layouts, projects, selected block) | Block Canvas, API layer |
+| Image Pipeline (Sharp) | Server-side: resize variants, composite watermark, extract EXIF, write to R2 | R2 Storage, DB (EXIF table) |
+| Photo Library | Browse/search uploaded photos, assign to blocks | EditorStore, Image Pipeline |
+| Project Manager | CRUD for projects, each with its own grid layout | EditorStore, DB layouts table |
+| Content Protection Layer | Serve signed/expiring URLs, proxy low-res images, inject JS guards | R2, API image route |
+| Auth Layer (Auth.js + TOTP) | Credential check, TOTP verification, session management, middleware guard | Middleware, DB users table |
+| Analytics | Record page views, referrers, geography | DB analytics table, Cloudflare headers |
 
-## Recommended Project Structure
+---
+
+## Recommended Project Structure (Evolution from Current)
 
 ```
 src/
 ├── app/
-│   ├── (site)/                     # Public user views
-│   │   ├── layout.tsx              # Site nav, shared styling
-│   │   ├── page.tsx                # Home with masonry grid
+│   ├── (site)/                    # Public SSR pages (existing, extended)
+│   │   ├── page.tsx               # Homepage grid
 │   │   ├── projects/
-│   │   │   ├── layout.tsx          # Projects shared layout
-│   │   │   └── [slug]/
-│   │   │       └── page.tsx        # Single project with row layout
-│   │   └── api/
-│   │       └── projects/
-│   │           └── [slug]/
-│   │               └── route.ts    # GET projects by slug
-│   │
-│   ├── (editor)/                   # Protected auth routes
-│   │   ├── layout.tsx              # Auth check, editor layout
-│   │   ├── login/page.tsx          # Login page
-│   │   └── editor/
-│   │       ├── page.tsx            # Editor page (edit home)
-│   │       └── project/
-│   │           └── [slug]/
-│   │               └── page.tsx    # Project editor
-│   │
-│   ├── admin/                      # Admin overlay routes
-│   │   ├── layout.tsx              # Admin layout, holds @edit slot
-│   │   ├── page.tsx                # Mirrors (site)/page
-│   │   ├── projects/
-│   │   │   └── [slug]/
-│   │   │       └── page.tsx        # Mirrors (site)/projects/[slug]
-│   │   ├── @edit/
-│   │   │   ├── default.tsx         # Returns null when no edit active
-│   │   │   └── (.)*/               # Intercept routes for edit modals
-│   │   │       └── page.tsx
-│   │   └── api/ (shared with above)
-│   │
-│   ├── api/                        # Shared API routes
-│   │   ├── layouts/
-│   │   │   ├── route.ts            # GET all layouts
-│   │   │   └── [slug]/
-│   │   │       └── route.ts        # GET/PUT specific layout
-│   │   ├── projects/
-│   │   │   ├── route.ts            # GET all projects
-│   │   │   └── [slug]/
-│   │   │       └── route.ts        # GET/PUT/DELETE project
+│   │   │   └── [slug]/page.tsx    # Project grid page (new)
+│   │   └── layout.tsx
+│   ├── (editor)/                  # Protected editor pages (existing, extended)
+│   │   ├── editor/
+│   │   │   ├── page.tsx           # Home layout editor
+│   │   │   └── projects/
+│   │   │       ├── page.tsx       # Project list
+│   │   │       └── [slug]/page.tsx # Per-project grid editor (new)
+│   │   ├── library/page.tsx       # Photo library (new)
+│   │   └── layout.tsx
+│   ├── api/
+│   │   ├── layouts/[slug]/route.ts  # Existing, extend for projects
+│   │   ├── upload/route.ts          # Replace: Sharp pipeline + R2 (replaces Cloudinary)
 │   │   ├── images/
-│   │   │   └── upload/
-│   │   │       └── route.ts        # POST image to Cloudinary
-│   │   └── auth/
-│   │       └── [provider]/
-│   │           ├── route.ts        # Supabase auth callback
-│   │
-│   ├── layout.tsx                  # Root layout
-│   └── globals.css                 # Global styles
-│
+│   │   │   ├── [id]/route.ts        # Signed URL proxy / low-res serve (new)
+│   │   │   └── signed/route.ts      # Generate time-limited R2 presigned URL (new)
+│   │   ├── projects/route.ts        # Project CRUD (new)
+│   │   └── analytics/route.ts       # Record visits (new)
+│   └── login/page.tsx               # 2FA-aware login page
 ├── core/
+│   ├── editor/
+│   │   ├── store.ts               # Extended: projects, photo library state
+│   │   ├── BlockCanvas.tsx        # Replaces EditorCanvas — CSS Grid with col/row spans
+│   │   ├── BlockItem.tsx          # Replaces SortableItem — span-aware, resizable
+│   │   ├── PropertiesPanel.tsx    # Extended: block size, EXIF display
+│   │   └── Toolbar.tsx            # Extended: column count control
 │   ├── renderer/
-│   │   ├── Renderer.tsx            # Layout item renderer
-│   │   ├── MasonryGrid.tsx         # Home-specific masonry renderer
-│   │   ├── RowLayout.tsx           # Project-specific 12-col renderer
-│   │   ├── types.ts                # Layout/Item Zod schemas
-│   │   └── sample-layout.ts        # Demo data
-│   │
-│   ├── viewer/
-│   │   ├── PhotoViewer.tsx         # Modal lightbox component
-│   │   ├── ViewerOverlay.tsx       # Photo nav controls overlay
-│   │   ├── store.ts                # Viewer state (Zustand)
-│   │   └── usePhotoViewer.ts       # Custom hook
-│   │
-│   ├── admin/
-│   │   ├── EditOverlay.tsx         # Admin edit controls
-│   │   ├── AdminToolbar.tsx        # Edit/save/discard buttons
-│   │   ├── store.ts                # Admin state (Zustand)
-│   │   └── useAdminMode.ts         # Custom hook
-│   │
-│   └── editor/
-│       ├── EditorCanvas.tsx        # Main editor workspace
-│       ├── Toolbar.tsx             # Item add/remove buttons
-│       ├── PropertiesPanel.tsx     # Item property editor
-│       ├── SortableItem.tsx        # Drag-drop item wrapper
-│       ├── store.ts                # Editor state (Zustand)
-│       └── useEditorStore.ts       # Custom hook
-│
+│   │   ├── GridRenderer.tsx       # Replaces Renderer — CSS Grid with column config
+│   │   ├── BlockRenderer.tsx      # Renders individual blocks (image, text, spacer, video)
+│   │   ├── types.ts               # Extended: GridBlock with colSpan/rowSpan, GridLayout with columns
+│   │   └── Lightbox.tsx           # New: fullscreen viewer with keyboard nav
+│   └── layout-engine/             # Replaced by CSS Grid (column config in data, not JS)
 ├── lib/
-│   ├── db/
-│   │   ├── client.ts               # Drizzle client
-│   │   ├── schema.ts               # Table definitions
-│   │   ├── layouts.ts              # Layout queries
-│   │   └── projects.ts             # Project queries (NEW)
-│   │
-│   ├── auth/
-│   │   ├── server.ts               # Server-side auth
-│   │   └── browser.ts              # Client-side auth
-│   │
+│   ├── auth/                      # Replace Supabase with Auth.js v5
+│   │   ├── config.ts              # Auth.js config: credentials + TOTP provider
+│   │   ├── totp.ts                # TOTP generation/verification (otplib)
+│   │   └── session.ts             # Session helpers
 │   ├── storage/
-│   │   └── image-loader.ts         # Cloudinary utilities
-│   │
-│   └── utils/
-│       ├── layout-engine.ts        # Masonry positioning
-│       ├── row-layout-engine.ts    # Row-based positioning (NEW)
-│       └── types.ts                # Shared types
-│
-└── components/
-    ├── Modal.tsx                   # Generic modal wrapper
-    ├── ThemeToggle.tsx             # Dark mode switch
-    ├── Navigation.tsx              # Site/admin nav
-    └── (other shared components)
+│   │   ├── r2.ts                  # AWS SDK S3 client configured for R2 (replaces cloudinary.ts)
+│   │   ├── presign.ts             # Generate presigned GET URLs (time-limited, content protection)
+│   │   └── image-loader.ts        # Updated loader pointing to signed URL proxy
+│   ├── pipeline/                  # New: server-side image processing
+│   │   ├── process.ts             # Sharp pipeline: resize variants, watermark, EXIF
+│   │   ├── variants.ts            # Size definitions: thumb(400px), medium(1200px), full(2400px)
+│   │   └── exif.ts                # EXIF extraction with exifr, normalize to schema
+│   ├── protection/                # New: content protection utilities
+│   │   ├── signed-url.ts          # Generate expiring proxy URLs
+│   │   └── guards.ts              # JS anti-drag, right-click, devtools detection snippets
+│   ├── analytics/
+│   │   └── track.ts               # Server-side visit recording
+│   └── db/
+│       ├── client.ts              # Existing
+│       ├── schema.ts              # Extended (see Data Model section)
+│       ├── layouts.ts             # Extended: includes projects
+│       ├── images.ts              # New: photo library CRUD
+│       └── analytics.ts           # New: visit queries
+└── middleware.ts                  # Updated: Auth.js session check (replaces Supabase check)
 ```
 
-### Structure Rationale
-
-- **(site) route group:** Keeps public-facing routes organized and separate from admin infrastructure. All views render via Renderer components.
-- **(editor) route group:** Protected routes with Supabase auth middleware. Full-featured editing UI with Zustand store.
-- **admin/ root route:** Leverage parallel routes with @edit slot to render public view + edit overlay without changing URL. Intercepting routes capture /admin/.../* for overlay modals.
-- **/core/** organization: Separates rendering logic (core/renderer) from interactive overlays (core/admin, core/viewer) and editing tools (core/editor).
-- **/lib/db/**: Database operations isolated; layouts.ts handles home-specific queries, projects.ts added for project-specific queries.
-- **Store files colocated:** Each major feature owns its Zustand store (editor/store.ts, admin/store.ts, viewer/store.ts) for clear ownership and easier testing.
+---
 
 ## Architectural Patterns
 
-### Pattern 1: Route Group Organization
+### Pattern 1: Server-Side Image Processing Pipeline (Upload → Process → Store)
 
-**What:** Use Next.js route groups `(name)` to organize routes logically without affecting URL structure. Create separate route groups for different user contexts (site, editor).
+**What:** On upload, the API route receives the raw file buffer, passes it through a Sharp pipeline synchronously, and stores all three size variants in R2 before returning. EXIF is extracted in the same request and written to the database.
 
-**When to use:**
-- Different layouts needed for different sections
-- Auth/middleware applies differently per section
-- Clear separation of concerns (public vs. admin)
+**When to use:** Single-user admin context. Upload frequency is very low (one photographer). Synchronous processing on Vercel is fine up to ~4.5MB JPEG within the 60-second function timeout. No job queue needed.
 
-**Trade-offs:**
-- Pros: Keeps routes organized, supports multiple root layouts, URL structure remains clean
-- Cons: Full page reload when navigating between different root layouts (only if using multiple root layouts)
+**Trade-offs:** Simple (no queue), but if raw files are large (>15MB) or uploads happen in bursts, the function could timeout. Mitigate by capping upload size at 12MB raw and processing synchronously.
 
-**Example:**
+**Build order implication:** Image pipeline must be complete before the photo library UI and before blocks can reference images. This is a foundational dependency.
+
 ```typescript
-// src/app/(site)/layout.tsx
-export default function SiteLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <SiteProvider>
-      <Navigation mode="site" />
-      {children}
-    </SiteProvider>
-  );
-}
+// src/app/api/upload/route.ts (conceptual)
+export async function POST(req: Request) {
+  const form = await req.formData();
+  const file = form.get("file") as File;
+  const buffer = Buffer.from(await file.arrayBuffer());
 
-// src/app/(editor)/layout.tsx - Different layout, different auth
-export default function EditorLayout({ children }: { children: React.ReactNode }) {
-  // Auth check happens here
-  const session = await getSession();
-  if (!session) redirect('/login');
+  // 1. Extract EXIF before Sharp strips it
+  const exif = await extractEXIF(buffer);
 
-  return (
-    <EditorProvider>
-      <EditorNavigation />
-      {children}
-    </EditorProvider>
-  );
+  // 2. Process variants
+  const [thumb, medium, full] = await Promise.all([
+    processVariant(buffer, "thumb"),   // 400px wide, watermark applied
+    processVariant(buffer, "medium"),  // 1200px wide, watermark applied
+    processVariant(buffer, "full"),    // 2400px wide, watermark applied
+  ]);
+
+  // 3. Upload all variants to R2
+  const id = nanoid();
+  await Promise.all([
+    uploadToR2(`${id}/thumb.webp`, thumb),
+    uploadToR2(`${id}/medium.webp`, medium),
+    uploadToR2(`${id}/full.webp`, full),
+  ]);
+
+  // 4. Persist metadata + EXIF to DB
+  await saveImage({ id, exif, variants: ["thumb", "medium", "full"] });
+  return NextResponse.json({ id });
 }
 ```
 
-### Pattern 2: Admin Overlay via Parallel Routes
+### Pattern 2: Block-Based CSS Grid (Column + Row Span Data Model)
 
-**What:** Use Next.js parallel routes with intercepting routes to render admin edit controls over public gallery views without changing the visible URL. `/admin/projects/[slug]` shows the same content as `/projects/[slug]` but with an overlay via `@edit` slot.
+**What:** Each block carries `colSpan` and `rowSpan` values. The grid container is defined with a `columns` count stored on the layout. Rendering uses `grid-column: span N` and `grid-row: span N` CSS. This replaces the current masonry/layout-engine approach.
 
-**When to use:**
-- Need edit mode without dedicated edit URLs
-- Want to preserve context and history
-- Need deep-linking with edit controls active
+**When to use:** This is the core editor pattern. CSS Grid is the right primitive — no library abstraction needed. The existing dnd-kit handles drag ordering; resize handles update `colSpan`/`rowSpan` in the Zustand store.
 
-**Trade-offs:**
-- Pros: Seamless UX, URL-shareable edit state, clear mental model, leverages Next.js routing
-- Cons: Requires understanding of parallel routes and intercepting routes, slightly more file structure
+**Trade-offs:** Pure CSS Grid with `grid-auto-flow: row dense` handles auto-placement well. However, precise positioning (place block at column 3, row 2) requires storing explicit `gridColumnStart`/`gridRowStart` — avoid this complexity unless the photographer specifically needs it. Start with auto-flow dense.
 
-**Example:**
 ```typescript
-// src/app/admin/layout.tsx - Renders public view + edit overlay
-export default function AdminLayout({
-  children,
-  edit,
-}: {
-  children: React.ReactNode;
-  edit: React.ReactNode;
-}) {
-  return (
-    <AdminProvider>
-      <div className="relative">
-        {children}           {/* Public (site) content */}
-        {edit}              {/* Edit overlay via @edit slot */}
-      </div>
-    </AdminProvider>
-  );
-}
+// Extended types (replaces current types.ts)
+export const gridBlockSchema = z.object({
+  id: z.string(),
+  type: z.enum(["image", "text", "spacer", "video"]),
+  colSpan: z.number().int().min(1).max(12).default(1),
+  rowSpan: z.number().int().min(1).max(6).default(1),
+  imageId: z.string().optional(),   // References images table
+  content: z.string().optional(),
+  videoUrl: z.string().optional(),
+});
 
-// src/app/admin/@edit/default.tsx - Return null when no edit is active
-export default function Default() {
-  return null;
-}
-
-// src/app/admin/@edit/(.)projects/[slug]/edit/page.tsx - Intercept and show overlay
-export default function EditProjectOverlay({ params }: { params: { slug: string } }) {
-  return (
-    <Modal>
-      <EditOverlay slug={params.slug} />
-    </Modal>
-  );
-}
+export const gridLayoutSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  columns: z.number().int().min(1).max(12).default(3),
+  gap: z.number().int().min(0).max(32).default(4),
+  blocks: z.array(gridBlockSchema),
+  updatedAt: z.string(),
+});
 ```
 
-### Pattern 3: Layout-Specific Renderers
+### Pattern 3: Two-Tier Image Delivery (Low-Res Public / Signed High-Res)
 
-**What:** Create different renderer components for different gallery layouts (MasonryGrid for home, RowLayout for projects). Each accepts the same Layout type but arranges items differently.
+**What:** Public pages always display `medium` variant (1200px) served through a Next.js proxy route that generates a short-lived R2 presigned URL. The R2 bucket is private. The `full` variant is only accessible via a fresh presigned URL generated per-request in the lightbox.
 
-**When to use:**
-- Different layout rules per page (masonry vs. rows)
-- Shared item types but different display logic
-- Want to swap layouts without changing the data model
+**When to use:** This pattern addresses the photographer's specific content protection requirement. The bucket is never public. Direct R2 URLs are never exposed to clients.
 
-**Trade-offs:**
-- Pros: Clean separation, reusable item types, easy to add new layouts
-- Cons: Slight code duplication between renderers
+**Trade-offs:** Every image render requires a presigned URL generation call (or caching the URL for its TTL, ~15 minutes). The proxy adds one network hop per image. This is acceptable for a portfolio where page weight matters less than protection.
 
-**Example:**
-```typescript
-// src/core/renderer/MasonryGrid.tsx
-export const MasonryGrid = ({ layout, onImageClick }: Props) => {
-  const positions = buildMasonryPositions(layout.items, columnCount);
+```
+User requests page
+  → SSR renders <img src="/api/images/[id]?size=medium" />
+  → /api/images/[id] generates presigned R2 URL (15min TTL)
+  → Redirects (302) client to presigned R2 URL
+  → Client caches the redirect for 15min via Cache-Control
+  → R2 serves WebP directly to client
 
-  return (
-    <div className="columns-3 gap-4">
-      {layout.items.map((item) => (
-        <div key={item.id} className="break-inside-avoid">
-          <renderItem(item, { onImageClick }) />
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// src/core/renderer/RowLayout.tsx
-export const RowLayout = ({ layout, onImageClick }: Props) => {
-  return (
-    <div className="grid grid-cols-12 gap-4">
-      {/* Intelligent row-breaking logic here */}
-      {layout.items.map((item) => (
-        <div key={item.id} className="col-span-X">
-          <renderItem(item, { onImageClick }) />
-        </div>
-      ))}
-    </div>
-  );
-};
+Lightbox opens:
+  → Client POSTs to /api/images/signed with { id, size: "full" }
+  → Server verifies: is this a public layout? (no auth required for public)
+  → Returns fresh presigned URL (5min TTL for full-res)
+  → Lightbox loads full-res from presigned URL
 ```
 
-### Pattern 4: Shared Photo Viewer via Zustand
+### Pattern 4: Auth.js v5 with Two-Factor Authentication
 
-**What:** Global photo viewer modal state (Zustand store) that any gallery can open. PhotoViewer component consumes this state and displays a lightbox modal for any photo in any gallery.
+**What:** Replace Supabase auth with Auth.js v5 (formerly NextAuth). Use a Credentials provider for password check. Store a TOTP secret in the database. After password verification, if 2FA is enabled, set a temporary `requiresTwoFactor` flag on the session token. Middleware intercepts editor routes and redirects to a 2FA verification page if the flag is set.
 
-**When to use:**
-- Photo viewer accessed from multiple contexts (home gallery, project galleries, admin mode)
-- Need consistent photo navigation/keyboard shortcuts across app
-- Want to avoid prop-drilling open/close/index state
+**When to use:** Single-admin scenario. Simpler than OAuth flows. TOTP via `otplib` library (well-maintained, RFC 6238 compliant).
 
-**Trade-offs:**
-- Pros: Single source of truth, easy to access from any component, consistent UX
-- Cons: Global state can be harder to debug, requires cleanup on unmount
+**Trade-offs:** Credentials provider requires careful CSRF protection (Auth.js handles this). Session state must track 2FA completion separately from authentication. Two database reads per login (password check + TOTP verification).
 
-**Example:**
-```typescript
-// src/core/viewer/store.ts
-export const useViewerStore = create<ViewerState>((set) => ({
-  isOpen: false,
-  images: [],
-  currentIndex: 0,
-  galleryId: null, // Track which gallery opened the viewer
+```
+POST /api/auth/callback/credentials
+  → Verify password against bcrypt hash in DB
+  → If valid: return user with { requiresTwoFactor: true }
+  → Auth.js creates session token with flag set
 
-  openViewer: (images, index, galleryId) => set({ isOpen: true, images, currentIndex: index, galleryId }),
-  closeViewer: () => set({ isOpen: false }),
-  nextPhoto: () => set((state) => ({
-    currentIndex: (state.currentIndex + 1) % state.images.length,
-  })),
-  prevPhoto: () => set((state) => ({
-    currentIndex: state.currentIndex === 0 ? state.images.length - 1 : state.currentIndex - 1,
-  })),
-}));
-
-// Usage in gallery
-const MasonryGrid = ({ layout, onImageClick }: Props) => {
-  const { openViewer } = useViewerStore();
-  const images = layout.items.filter((item) => item.type === 'image');
-
-  return (
-    <div className="masonry">
-      {images.map((img, idx) => (
-        <button
-          key={img.id}
-          onClick={() => openViewer(images, idx, 'home')}
-        >
-          <Image src={img.src} alt={img.alt} />
-        </button>
-      ))}
-    </div>
-  );
-};
-
-// Root layout includes viewer
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      {children}
-      <PhotoViewer /> {/* Rendered once, available everywhere */}
-    </>
-  );
-}
+Middleware checks token:
+  → If requiresTwoFactor === true AND path !== /verify-2fa → redirect
+  → POST /api/auth/verify-totp
+     → Validate TOTP code with otplib
+     → Update session: requiresTwoFactor = false, twoFactorVerified = true
 ```
 
-### Pattern 5: Zustand Store Slicing
-
-**What:** Organize each major feature's state in its own Zustand store. Editor state, admin state, viewer state are separate stores, combined via hooks.
-
-**When to use:**
-- Multiple independent state domains
-- Each domain has its own actions and selectors
-- Reduces coupling between features
-
-**Trade-offs:**
-- Pros: Clear boundaries, easy to test, can add/remove features independently
-- Cons: Slightly more boilerplate, need to manage multiple store subscriptions
-
-**Example:**
-```typescript
-// src/core/editor/store.ts
-export const useEditorStore = create<EditorState>((set, get) => ({
-  layout: null,
-  selectedId: null,
-  isSaving: false,
-  hasUnsavedChanges: false,
-  setLayout: (layout) => set({ layout }),
-  updateItem: (id, updates) => { /* ... */ },
-  saveLayout: async () => { /* ... */ },
-}));
-
-// src/core/admin/store.ts (NEW)
-export const useAdminStore = create<AdminState>((set) => ({
-  isEditMode: false,
-  editingPath: null, // Which page is being edited
-  toggleEditMode: () => set((state) => ({ isEditMode: !state.isEditMode })),
-  setEditingPath: (path) => set({ editingPath: path }),
-}));
-
-// Component can use both
-export const AdminLayout = ({ children, edit }: Props) => {
-  const { isEditMode } = useAdminStore();
-  const { hasUnsavedChanges, saveLayout } = useEditorStore();
-
-  return (
-    <div>
-      {children}
-      {isEditMode && edit}
-    </div>
-  );
-};
-```
+---
 
 ## Data Flow
 
-### Request Flow: User Views Project
+### Upload and Process Flow
 
 ```
-User clicks /projects/my-trip
+Editor: User selects file(s)
     ↓
-Next.js Routes → (site)/projects/[slug]/page.tsx (Server Component)
+Client: POST /api/upload (multipart/form-data)
     ↓
-getProjectBySlug(slug) → Database Query
+Server (Sharp pipeline):
+  1. Extract EXIF (exifr) from raw buffer
+  2. Auto-orient from EXIF
+  3. Resize to thumb / medium / full variants
+  4. Composite watermark SVG over each variant
+  5. Convert to WebP
     ↓
-Renderer/RowLayout receives project layout
+Server: Parallel upload all variants to R2 (AWS SDK PutObject)
     ↓
-Client-side MasonryGrid renders items with motion animations
+Server: INSERT into images table (id, exif JSON, variant paths, upload date)
     ↓
-User sees gallery; clicks photo
+Client receives: { imageId }
     ↓
-Image click → useViewerStore.openViewer(images, index)
+Editor: User drags image from Photo Library into a grid block
     ↓
-PhotoViewer modal opens in root layout (already mounted)
+Zustand store: block.imageId = imageId
     ↓
-User navigates photos via arrow keys/buttons (Zustand state updates)
+User saves layout → PUT /api/layouts/[slug] persists block data
 ```
 
-### Admin Edit Flow: User Clicks Edit Button in /admin
+### Public Render Flow
 
 ```
-User at /admin/projects/my-trip (parallel route)
+Visitor hits /projects/[slug]
     ↓
-@edit slot renders null (default.tsx) - no overlay visible
+Next.js SSR: getLayoutBySlug(slug) via Drizzle → PostgreSQL
+Returns: { columns, blocks: [{ id, type, colSpan, rowSpan, imageId }] }
     ↓
-User clicks "Edit Project" button
+GridRenderer: maps blocks → <div style="grid-column: span N">
+  Each image block: <img src="/api/images/[imageId]?size=medium" />
     ↓
-Navigate to /admin/projects/my-trip/edit
+Browser requests /api/images/[imageId]?size=medium
     ↓
-Next.js intercepts via @edit/(.)projects/[slug]/edit/page.tsx
+API route: generatePresignedUrl(r2Key, ttl=900) → signed R2 URL
+API route: Response.redirect(signedUrl, 302) with Cache-Control: max-age=900
     ↓
-Edit modal renders over public view (via @edit slot)
+Browser: caches redirect, fetches WebP from R2 directly
     ↓
-EditOverlay component mounts, loads project via API
-    ↓
-useAdminStore.setEditingPath(path) - sets active edit context
-    ↓
-Changes saved via API
-    ↓
-useEditorStore.saveLayout() triggers save
-    ↓
-Admin closes modal (router.back())
-    ↓
-@edit slot returns null again, overlay disappears
+Content protection: JS overlay injected in layout.tsx disables right-click,
+  drag, selection on all img elements (class-based)
 ```
 
-### State Management Data Flow
+### Editor State Flow
 
 ```
-                    Zustand Stores (Global)
-                    ┌─────────────────────────┐
-                    │  EditorStore            │
-                    │  - layout, selectedId   │
-                    │  - hasUnsavedChanges    │
-                    └──────────┬──────────────┘
-                               │ (subscribe)
-                    ┌──────────┴──────────────┐
-                    │                         │
-            ┌───────▼────────┐     ┌────────▼──────┐
-            │ EditorCanvas   │     │ PropertiesPanel│
-            │ (reads state)  │     │ (reads state)  │
-            └───────┬────────┘     └────────┬──────┘
-                    │                      │
-                    └──────────┬───────────┘
-                             (writes)
-                    ┌──────────▼──────────────┐
-                    │  useEditorStore()      │
-                    │  updateItem()          │
-                    │  addItem()             │
-                    │  removeItem()          │
-                    │  saveLayout()          │
-                    └────────────────────────┘
+Zustand EditorStore
+    ├── layout: GridLayout (home)
+    ├── projects: Project[] (list with metadata)
+    ├── activeProjectSlug: string | null
+    ├── activeLayout: GridLayout (currently editing)
+    ├── selectedBlockId: string | null
+    ├── photoLibrary: Photo[] (loaded on demand)
+    └── hasUnsavedChanges: boolean
+
+User drags block → moveBlock(id, newIndex) → store update → React re-render
+User resizes block → updateBlock(id, { colSpan, rowSpan }) → store update
+User drops photo → updateBlock(id, { imageId }) → store update
+User clicks Save → PUT /api/layouts/[slug] → store.hasUnsavedChanges = false
 ```
 
-## Scaling Considerations
+---
 
-| Concern | At 100 users | At 10K users | At 1M users |
-|---------|--------------|--------------|-------------|
-| **Database queries** | One query per page load OK | Add caching layer for layouts query | Implement database read replicas |
-| **Image delivery** | Cloudinary direct URLs fine | CDN caching via Cloudinary intelligent transformation | Image optimization server, resize on-demand |
-| **Admin overhead** | Single store, no issues | Separate stores per module (already doing this) | Consider request batching API |
-| **Bundle size** | ~60KB gzipped OK | Monitor Zustand store size | Implement code splitting for admin features |
-| **Concurrent editors** | Not an issue | Implement optimistic updates, conflict resolution | WebSocket for real-time collab |
+## Component Boundaries
+
+| Boundary | Direction | Protocol | Notes |
+|----------|-----------|----------|-------|
+| BlockCanvas ↔ EditorStore | bidirectional | Zustand subscribe/actions | Canvas reads store, actions write back |
+| EditorStore ↔ API layouts | client → server | fetch PUT/GET | Store initiates, API validates with Zod |
+| Photo Library ↔ API images | client → server | fetch GET/POST | Paginated photo list, upload trigger |
+| API upload ↔ Sharp pipeline | internal | function call (same handler) | No queue, synchronous within request |
+| Sharp pipeline ↔ R2 | server → external | AWS SDK S3 PutObject | R2 endpoint in env vars |
+| API images ↔ R2 | server → external | AWS SDK S3 GetObject presign | Short-lived URL, never cached on server |
+| GridRenderer ↔ API images | client → server | img src proxy | 302 redirect to presigned R2 URL |
+| Middleware ↔ Auth.js | server internal | next-auth session cookie | Edge-compatible session read |
+| Analytics ↔ DB | server → DB | Drizzle INSERT | Fire-and-forget in API route (non-blocking) |
+
+---
+
+## Data Model Evolution
+
+The existing schema has two tables (`layouts` with JSONB data). The new schema needs to separate concerns:
+
+```
+layouts (existing, extended)
+  id, slug, title, columns (new), gap (new), data (JSONB blocks), updated_at
+
+projects (new)
+  id, slug, title, description, category, order, layout_id (FK → layouts), created_at
+
+images (new — photo library)
+  id, filename, r2_key_prefix, width, height, aspect_ratio,
+  exif (JSONB: camera, lens, focal_length, aperture, iso, shutter_speed, shot_at),
+  uploaded_at
+
+users (new — replaces Supabase)
+  id, email, password_hash, totp_secret, two_factor_enabled, created_at
+
+analytics_events (new)
+  id, page_path, referrer, country, city, user_agent, visited_at
+```
+
+**Key design decision:** `images` table is a library independent of layouts. Blocks reference `imageId` rather than storing URLs directly. This allows reusing the same photo across multiple layouts without duplication in R2.
+
+---
+
+## Build Order (Dependencies Between Components)
+
+This order reflects what must exist before the next thing can be built:
+
+**Step 1 — Foundation (everything depends on this)**
+1. Auth.js v5 + TOTP replaces Supabase middleware
+2. R2 client + presigned URL utilities replace Cloudinary
+3. DB schema migration: extend `layouts`, add `projects`, `images`, `users` tables
+
+**Step 2 — Image Pipeline (blocks can't hold images until this exists)**
+4. Sharp processing pipeline (resize variants, watermark, EXIF extraction)
+5. Upload API route using pipeline + R2 (replaces existing `/api/upload`)
+6. Image proxy route (`/api/images/[id]`) for signed URL delivery
+
+**Step 3 — Grid Editor (depends on new block schema and image pipeline)**
+7. Updated Zod types: `GridBlock` with colSpan/rowSpan, `GridLayout` with columns
+8. `GridRenderer` component (replaces `Renderer`, CSS Grid with col/row spans)
+9. `BlockCanvas` + `BlockItem` (replaces `EditorCanvas`, span-aware drag/resize)
+10. Photo Library panel in editor (browse images table, drag into blocks)
+
+**Step 4 — Projects System (depends on grid editor being stable)**
+11. Projects DB CRUD + API routes
+12. Project list in editor sidebar (expandable directory)
+13. Per-project grid editor page
+14. Public project pages (`/projects/[slug]`)
+
+**Step 5 — Content Protection (depends on image delivery and public pages)**
+15. JS guards in layout (right-click, drag, selection)
+16. DevTools detection script
+17. Lightbox with full-res signed URL request
+
+**Step 6 — Supporting Features (can be added in any order after Step 5)**
+18. EXIF display in lightbox and properties panel
+19. Analytics recording and dashboard
+20. Site management (bio, contact, credits) from admin
+
+---
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Prop Drilling Photo Viewer State
+### Anti-Pattern 1: Direct R2 URL Exposure
 
-**What people do:** Pass `isViewerOpen`, `currentPhotoIndex`, `photos` as props down 5+ component levels instead of using Zustand.
+**What people do:** Make R2 bucket public, store full R2 URLs in the database, reference them directly in `<img src>` tags.
 
-**Why it's wrong:** Makes refactoring hard, components become tightly coupled, hard to reuse components in different contexts where photo viewer might be needed.
+**Why it's wrong:** Public bucket URLs are permanent and unrevocable. Anyone who finds the URL (via DevTools, scraping, or source inspection) has permanent access to the original file. Destroys the entire content protection architecture.
 
-**Do this instead:** Use `useViewerStore()` hook from any component that needs to open/navigate the photo viewer. Keep prop drilling for "presentation" data only (colors, labels), not app state.
+**Do this instead:** Keep R2 bucket private. Always serve images through the proxy route. Generate presigned URLs server-side with short TTLs. Store only the R2 key prefix (e.g., `abc123/`) in the database, never the full URL.
 
-```typescript
-// ❌ Don't do this
-export const MasonryGrid = ({
-  layout,
-  isViewerOpen,
-  currentPhotoIndex,
-  photos,
-  onPhotoClick
-}: Props) => {
-  return (
-    // Pass props down further...
-  );
-};
+### Anti-Pattern 2: Storing Image Sizes as Cloudinary Transformation URLs
 
-// ✅ Do this
-export const MasonryGrid = ({ layout }: Props) => {
-  const { openViewer } = useViewerStore();
+**What people do:** Store the CDN URL with query parameters for each size (`?w=400`, `?w=1200`) and generate size variants at render time via URL manipulation.
 
-  return (
-    <div onClick={() => openViewer(images, index)}>
-      {/* ... */}
-    </div>
-  );
-};
-```
+**Why it's wrong:** This approach ties the data model to the CDN's URL scheme. When migrating CDNs (as this project is doing from Cloudinary to R2), all stored URLs break. R2 doesn't support on-the-fly transforms.
 
-### Anti-Pattern 2: Overusing Zustand for Local Component State
+**Do this instead:** Store only the image ID. Process and store all variants at upload time. The data model references `imageId`, and the proxy route selects the variant via query param (`?size=medium`).
 
-**What people do:** Put every toggle (`showDetails`, `isExpanded`) in a global store instead of local `useState`.
+### Anti-Pattern 3: Synchronous Image Upload from Client to Server for Large Files
 
-**Why it's wrong:** Pollutes global state, makes debugging harder, unnecessary complexity for UI-only state that doesn't need to persist or be shared across routes.
+**What people do:** POST raw file bytes to the Next.js API route, which buffers the entire file in memory, processes it, and forwards to storage — all in one synchronous chain.
 
-**Do this instead:** Use `useState` for local UI state (button active, accordion open). Use Zustand only for state that crosses component/route boundaries (which gallery opened viewer, which item is selected in editor).
+**Why it's wrong:** Vercel serverless functions have a 4.5MB body limit by default (configurable to 50MB in config) and a 60-second timeout. Large RAW files or many simultaneous uploads will fail.
 
-```typescript
-// ❌ Don't do this - use Zustand for button toggle
-const useUIStore = create((set) => ({
-  showFilters: false,
-  toggleFilters: () => set((state) => ({ showFilters: !state.showFilters })),
-}));
+**Do this instead:** Use the `bodyParser: false` config and stream the file. Cap upload size at 12MB compressed JPEG (not RAW). For this single-user portfolio, this is sufficient — the photographer uploads processed JPEGs, not RAW files.
 
-// ✅ Do this - use useState for local UI state
-export const Gallery = () => {
-  const [showFilters, setShowFilters] = useState(false);
+### Anti-Pattern 4: Putting Grid Layout Logic in JavaScript
 
-  return (
-    <button onClick={() => setShowFilters(!showFilters)}>
-      Toggle Filters
-    </button>
-  );
-};
-```
+**What people do:** Calculate grid positions, column widths, and item placement in JavaScript/React state, then apply inline styles.
 
-### Anti-Pattern 3: Admin Overlay as Separate Route
+**Why it's wrong:** This duplicates what CSS Grid does natively, adds complexity, and makes the layout engine harder to maintain. The existing `layout-engine/` JS masonry calculator is unnecessary once CSS Grid is used.
 
-**What people do:** Create `/edit/projects/[slug]` as a standalone route instead of using parallel routes.
+**Do this instead:** Store only `colSpan` and `rowSpan` per block, plus `columns` on the layout. Let CSS Grid handle all positioning via `grid-template-columns: repeat(N, 1fr)` and `grid-column: span N`. Delete the layout-engine module.
 
-**Why it's wrong:** Loses context (user scrolled to middle of gallery, you navigate away and back, scroll position lost). URL changes, can't deep-link the edit state. Requires loading the entire page again.
+### Anti-Pattern 5: Using Supabase for Auth When the Project Has No Free Tier Reliability
 
-**Do this instead:** Use parallel routes so `/admin/projects/[slug]` and `/admin/projects/[slug]/edit` render the same content with overlay. URL shows edit state, context preserved, refreshes work correctly.
+**What people do:** Keep Supabase auth to avoid migration work, accepting that the project suspends after 1 week of inactivity.
 
-```typescript
-// ❌ Don't do this - separate route loses context
-// /edit/projects/[slug]/page.tsx - full page reload
+**Why it's wrong:** The photographer works on the portfolio periodically, not daily. A suspended project means the admin is inaccessible — content can't be updated. This is the exact problem that was already identified.
 
-// ✅ Do this - parallel routes keep context
-// /admin/layout.tsx receives @edit slot
-// /admin/@edit/(.)projects/[slug]/edit/page.tsx - intercepts without full reload
-```
+**Do this instead:** Self-hosted Auth.js v5 with credentials provider and TOTP. Sessions live in the PostgreSQL database (already managed, no inactivity suspension). One-time migration effort, permanent reliability gain.
 
-### Anti-Pattern 4: Layout Data in URL Query Params
-
-**What people do:** Pass entire layout JSON in URL: `/editor?layout={...huge JSON...}` instead of loading from database.
-
-**Why it's wrong:** URL becomes unshare-able, browser history becomes bloated, URL length limits kick in, no persistence.
-
-**Do this instead:** Store layouts in database, load via API/database query, reference by slug in URL.
-
-```typescript
-// ❌ Don't do this
-// /editor?layout={"items":[...]}
-
-// ✅ Do this
-// /editor (or /(editor)/editor/page.tsx)
-// useEffect(() => {
-//   fetch(`/api/layouts/home`).then(layout => setLayout(layout))
-// })
-```
+---
 
 ## Integration Points
 
@@ -626,30 +456,45 @@ export const Gallery = () => {
 
 | Service | Integration Pattern | Notes |
 |---------|---------------------|-------|
-| **Cloudinary** | REST API via /api/images/upload | Handles image optimization, transformation URLs via cloudinary.url() |
-| **Supabase Auth** | OAuth provider via /api/auth/[provider]/route.ts | Stores session in cookies, validated server-side |
-| **PostgreSQL** | Drizzle ORM queries in /lib/db/ | Connection pooling via Postgres client, JSONB for layout data |
-| **Vercel** | Next.js deployment, Image Optimization | Automatic ISR for static pages, serverless functions for API |
+| Cloudflare R2 | AWS SDK v3 (`@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`) | R2 is S3-compatible; set endpoint to R2 account URL |
+| PostgreSQL (Neon/Turso) | Drizzle ORM (existing) | Extend schema, add tables |
+| Cloudflare Analytics | Script tag in `<head>` | No server-side integration needed; Cloudflare dashboard shows traffic |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| **(site) ↔ (editor)** | API calls via /api/layouts/[slug] | Editor fetches layout, PUT to save |
-| **Viewer ↔ Renderer** | Zustand store + click handlers | Renderer calls useViewerStore.openViewer() |
-| **Admin ↔ (site)** | Parallel routes, same API calls | /admin mirrors (site) content, adds @edit overlay |
-| **Renderer ↔ Layout Types** | Zod schema validation | Layout, LayoutItem types shared via zod schemas |
+| Editor ↔ Photo Library | Zustand store (shared state) | Library is a panel within editor context |
+| Public pages ↔ Image proxy | HTTP (img src) | Standard browser request; proxy adds auth logic |
+| Middleware ↔ Auth session | Next.js cookies | Auth.js v5 uses encrypted JWT in cookie; edge-compatible |
+| Upload handler ↔ Sharp | In-process function call | No IPC, no queue; keep in same API route handler |
+
+---
+
+## Scaling Considerations
+
+| Concern | Current Scale (1 user, ~100 visitors/day) | Notes |
+|---------|------------------------------------------|-------|
+| Image processing | Synchronous in upload handler | Fine at this scale; single user uploads infrequently |
+| Presigned URL generation | Per-request, ~1ms | PostgreSQL + R2 SDK call; negligible at <1000 visitors/day |
+| DB queries | Direct Drizzle queries | No connection pooling needed at this scale |
+| Analytics writes | Fire-and-forget INSERT | Non-blocking; Postgres handles this easily |
+
+This project will not reach a scale where these patterns need revisiting. The budget constraint (free tier) is the binding constraint, not performance. Design for simplicity over premature optimization.
+
+---
 
 ## Sources
 
-- [Next.js 16 Route Groups Documentation](https://nextjs.org/docs/app/api-reference/file-conventions/route-groups)
-- [Next.js 16 Parallel Routes Documentation](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-routes)
-- [Zustand Official Documentation - Slices Pattern](https://zustand.docs.pmnd.rs/guides/slices-pattern)
-- [Zustand Multiple Stores Discussion](https://github.com/pmndrs/zustand/discussions/2496)
-- [Working with Zustand - TkDodo's Blog](https://tkdodo.eu/blog/working-with-zustand)
-- [React Lightbox Component Libraries - HubPages](https://discover.hubpages.com/technology/React-Image-Modal)
-- [Masonry Layout Architecture - Svelte Gallery GitHub](https://github.com/madeleineostoja/svelte-gallery)
+- [Sharp — High performance Node.js image processing](https://sharp.pixelplumbing.com/) — MEDIUM confidence (official docs, API stable)
+- [exifr — Fastest JS EXIF reading library](https://github.com/MikeKovarik/exifr) — MEDIUM confidence (GitHub, actively maintained)
+- [Cloudflare R2 Presigned URLs](https://developers.cloudflare.com/r2/api/s3/presigned-urls/) — HIGH confidence (official Cloudflare docs)
+- [Next.js + R2 upload with presigned URLs](https://www.buildwithmatija.com/blog/how-to-upload-files-to-cloudflare-r2-nextjs) — MEDIUM confidence (community tutorial, verified pattern)
+- [Auth.js Credentials Provider](https://authjs.dev/getting-started/providers/credentials) — HIGH confidence (official Auth.js docs)
+- [Auth.js 2FA with Next.js example](https://github.com/bharathvaj-ganesan/next-auth-2fa-example) — MEDIUM confidence (community, pattern well-established)
+- [react-grid-layout](https://github.com/react-grid-layout/react-grid-layout) — MEDIUM confidence (GitHub, considered but not recommended over native CSS Grid for this use case)
 
 ---
-*Architecture research for: Photography portfolio with admin CMS*
-*Researched: 2026-02-12*
+
+*Architecture research for: Mauro Guerrero Photography Portfolio (milestone 2 evolution)*
+*Researched: 2026-03-10*
