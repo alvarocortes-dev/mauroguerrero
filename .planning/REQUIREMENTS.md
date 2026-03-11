@@ -12,7 +12,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **AUTH-01**: Self-hosted auth replacing Supabase via better-auth with Drizzle adapter (no inactivity suspension)
 - [x] **AUTH-02**: Magic link email login + password authentication
 - [x] **AUTH-03**: SMS verification as additional auth factor (free tier)
-- [ ] **AUTH-04**: Server-side auth checks on all protected routes (fix CVE-2025-29927 middleware bypass)
+- [x] **AUTH-04**: Server-side auth checks on all protected routes (fix CVE-2025-29927 middleware bypass)
 - [ ] **AUTH-05**: Session management UI in admin (view and revoke active sessions)
 - [x] **AUTH-06**: Encrypted secret storage for auth tokens in database
 
@@ -140,7 +140,7 @@ Note: WORK-01, WORK-02, WORK-03 are cross-cutting workflow constraints that appl
 | AUTH-01 | Phase 1 | Complete |
 | AUTH-02 | Phase 1 | Complete |
 | AUTH-03 | Phase 1 | Complete |
-| AUTH-04 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Complete |
 | AUTH-05 | Phase 1 | Pending |
 | AUTH-06 | Phase 1 | Complete |
 | STOR-01 | Phase 2 | Pending |
