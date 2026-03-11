@@ -1,4 +1,5 @@
-import { betterAuth, createAuthMiddleware } from "better-auth";
+import { betterAuth } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { twoFactor } from "better-auth/plugins/two-factor";
 import { magicLink } from "better-auth/plugins";
@@ -40,27 +41,27 @@ export const auth = betterAuth({
     },
   },
   hooks: {
-    after: [
-      {
-        matcher: (ctx) =>
-          ctx.path === "/sign-in/email" ||
-          ctx.path === "/sign-in/magic-link",
-        handler: createAuthMiddleware(async (ctx) => {
-          const newSession = ctx.context.newSession;
-          if (!newSession) return;
+    after: createAuthMiddleware(async (ctx) => {
+      const path = ctx.path;
 
-          const user = newSession.user as { twoFactorEnabled?: boolean };
-          if (!user.twoFactorEnabled) {
-            // Session is created but admin access is gated
-            // The login page checks for this redirect
-            throw ctx.redirect("/editor/setup-totp");
-          }
-          // If twoFactorEnabled is true, better-auth's twoFactor plugin
-          // automatically handles the TOTP verification step via its built-in
-          // /two-factor/verify-login endpoint — no additional redirect needed here.
-        }),
-      },
-    ],
+      // Only enforce TOTP on sign-in paths
+      if (path !== "/sign-in/email" && path !== "/sign-in/magic-link") {
+        return;
+      }
+
+      const newSession = ctx.context.newSession;
+      if (!newSession) return;
+
+      const user = newSession.user as { twoFactorEnabled?: boolean };
+      if (!user.twoFactorEnabled) {
+        // Session is created but admin access is gated
+        // The login page checks for this redirect
+        throw ctx.redirect("/editor/setup-totp");
+      }
+      // If twoFactorEnabled is true, better-auth's twoFactor plugin
+      // automatically handles the TOTP verification step via its built-in
+      // /two-factor/verify-login endpoint — no additional redirect needed here.
+    }),
   },
   plugins: [
     twoFactor({ issuer: "Mauro Guerrero" }),
