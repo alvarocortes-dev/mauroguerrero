@@ -1,151 +1,194 @@
 # Requirements: Mauro Guerrero Photography Portfolio
 
-**Defined:** 2026-02-12
-**Core Value:** The photographer can showcase their work beautifully and manage all content themselves through a visual editor that matches exactly what visitors see.
+**Defined:** 2026-03-11
+**Core Value:** The photographer can independently build and manage beautiful, custom-layout galleries with full creative control — fast, intuitive, and protected.
 
 ## v1 Requirements
 
 Requirements for initial release. Each maps to roadmap phases.
 
-### Photo Viewer
+### Authentication & Security
 
-- [ ] **VIEW-01**: User can click any gallery photo to open a lightbox modal
-- [ ] **VIEW-02**: Lightbox modal adapts to the photo's aspect ratio (horizontal, vertical, 1:1) without overflow or hidden content
-- [ ] **VIEW-03**: User can zoom in/out via click (toggle) and scroll wheel, always within the modal bounds
-- [ ] **VIEW-04**: User can drag to pan around a zoomed photo
-- [ ] **VIEW-05**: Lightbox has a floating X close button centered above the modal
-- [ ] **VIEW-06**: User can navigate to next/previous photo via visible arrows or hints
-- [ ] **VIEW-07**: User can navigate photos with keyboard (arrow keys for nav, ESC to close)
-- [ ] **VIEW-08**: Transitions between photos in the viewer are smooth and animated
+- [x] **AUTH-01**: Self-hosted auth replacing Supabase via better-auth with Drizzle adapter (no inactivity suspension)
+- [x] **AUTH-02**: Magic link email login + password authentication
+- [x] **AUTH-03**: SMS verification as additional auth factor (free tier)
+- [ ] **AUTH-04**: Server-side auth checks on all protected routes (fix CVE-2025-29927 middleware bypass)
+- [ ] **AUTH-05**: Session management UI in admin (view and revoke active sessions)
+- [x] **AUTH-06**: Encrypted secret storage for auth tokens in database
 
-### Gallery Effects
+### Storage & Image Pipeline
 
-- [ ] **GALL-01**: Gallery photos display in grayscale by default
-- [ ] **GALL-02**: Gallery photos transition to color on hover (smooth CSS transition)
-- [ ] **GALL-03**: Grayscale/color behavior is configurable per photo (some photos stay B&W)
+- [ ] **STOR-01**: Migrate image storage from Cloudinary to Cloudflare R2
+- [ ] **STOR-02**: Presigned direct-to-R2 upload (bypasses Vercel 4.5MB body limit)
+- [ ] **STOR-03**: Auto-resize to multiple sizes on upload (thumbnail, medium, full)
+- [ ] **STOR-04**: Auto-watermark application on upload (configurable position/opacity)
+- [ ] **STOR-05**: EXIF metadata extraction and storage in DB on upload (before Sharp re-encodes)
+- [ ] **STOR-06**: Crop/recorte tool in upload flow (user crops before publishing)
+- [ ] **STOR-07**: Batch re-processing of existing library (re-watermark, re-resize)
 
-### Projects
+### Grid Editor
 
-- [ ] **PROJ-01**: Sidebar navigation shows expandable sub-menu listing available projects
-- [ ] **PROJ-02**: Clicking a project navigates to its page (only left content area changes, sidebar stays fixed)
-- [ ] **PROJ-03**: Project pages use a row-based layout where each row contains content blocks
-- [ ] **PROJ-04**: Each row supports multiple columns on a 12-column grid system
-- [ ] **PROJ-05**: Columns can contain images, text blocks, or blank spacers
-- [ ] **PROJ-06**: Each column's width is independently adjustable within the 12-column grid
-- [ ] **PROJ-07**: Photos in project pages are clickable and open the same lightbox viewer (zoom, pan, navigation)
+- [ ] **GRID-01**: Configurable column count per layout (e.g., 3, 4, 5 columns)
+- [ ] **GRID-02**: Add placeholder blocks (1x1 base) that resize by dragging edges/corners snapping to grid cells
+- [ ] **GRID-03**: Assign block type after placement: image, video embed, text, spacer
+- [ ] **GRID-04**: Block resize changes colSpan/rowSpan; blocked by occupied cells (no overlap)
+- [ ] **GRID-05**: Drag & drop to reorder/reposition blocks within grid
+- [ ] **GRID-06**: Undo/redo support (Ctrl+Z / Ctrl+Shift+Z)
+- [ ] **GRID-07**: Responsive preview toggle (mobile/tablet/desktop) in editor
 
-### Admin — General
+### Projects System
 
-- [ ] **ADMN-01**: `/admin` route renders the exact public site view with floating edit controls overlaid
-- [ ] **ADMN-02**: Admin routes are protected by Supabase authentication (redirects to login if unauthenticated)
-- [ ] **ADMN-03**: Admin controls are visually distinct but non-intrusive (floating, contextual)
+- [ ] **PROJ-01**: Create/edit/delete projects, each with its own editable grid layout
+- [ ] **PROJ-02**: Directory-style expandable list navigation in sidebar menu
+- [ ] **PROJ-03**: Project ordering controlled by photographer (drag to reorder)
+- [ ] **PROJ-04**: Draft/published status per project (hide unpublished from public)
 
-### Admin — Home Gallery
+### Photo Library
 
-- [ ] **ADMN-04**: Admin can add new photos to the home gallery
-- [ ] **ADMN-05**: Admin can remove photos from the home gallery
-- [ ] **ADMN-06**: Admin can reorder photos in the home gallery (drag-and-drop)
-- [ ] **ADMN-07**: Admin can edit photo metadata (caption, alt text, B&W flag)
-- [ ] **ADMN-08**: Admin can adjust photo size in the gallery grid
+- [ ] **LIBR-01**: Internal media manager showing all uploaded photos in grid view
+- [ ] **LIBR-02**: Multi-file upload with drag & drop and file picker
+- [ ] **LIBR-03**: Delete individual photos from library and R2 storage
+- [ ] **LIBR-04**: Bulk select photos for batch delete or operations
+- [ ] **LIBR-05**: Photo metadata display (filename, dimensions, size, EXIF summary)
 
-### Admin — Projects
+### Lightbox / Photo Viewer
 
-- [ ] **ADMN-09**: Admin can create new projects (title, slug)
-- [ ] **ADMN-10**: Admin can edit existing projects inline (WYSIWYG on the real site view)
-- [ ] **ADMN-11**: Admin can delete projects
-- [ ] **ADMN-12**: Admin can add/remove rows in a project
-- [ ] **ADMN-13**: Admin can add/remove columns within a row
-- [ ] **ADMN-14**: Admin can drag to resize column widths on the 12-column grid
-- [ ] **ADMN-15**: Admin can upload images to columns via Cloudinary
-- [ ] **ADMN-16**: Admin can add/edit text content in columns (using TipTap rich text)
-- [ ] **ADMN-17**: Admin can add blank spacer columns for compositional control
+- [ ] **LBOX-01**: Click any photo to open full-resolution modal with background blur
+- [ ] **LBOX-02**: Left/right arrow navigation between consecutive photos in same context
+- [ ] **LBOX-03**: Keyboard navigation (arrows for prev/next, Escape to close)
+- [ ] **LBOX-04**: EXIF metadata display panel within lightbox (camera, lens, aperture, ISO, etc.)
+- [ ] **LBOX-05**: Zoom/pan on photo (scroll-to-zoom or pinch-to-zoom on mobile)
 
-### Contact Form
+### Content Protection
 
-- [ ] **CONT-01**: Contact form sends real emails via Resend when submitted
+- [ ] **PROT-01**: Disable right-click context menu on image elements
+- [ ] **PROT-02**: Disable image dragging via CSS/JS
+- [ ] **PROT-03**: CSS anti-selection on image containers
+- [ ] **PROT-04**: Visible watermark burned into all displayed image variants
+- [ ] **PROT-05**: Low-resolution display version; full quality only via signed/expiring URLs
+- [ ] **PROT-06**: DevTools detection with content dimming (soft detection, not hard block)
+
+### Site Management
+
+- [ ] **SITE-01**: Edit About/Sobre Mí page content and profile photo from admin
+- [ ] **SITE-02**: Edit contact links, email, and social media (RRSS) URLs from admin
+- [ ] **SITE-03**: Edit credits page content from admin
+
+### Workflow & Git
+
+- [ ] **WORK-01**: Commits atómicos a medida que avanzan funcionalidades (mensajes en español)
+- [ ] **WORK-02**: Sin Co-Authored-By de Claude — commits con el usuario nativo del repositorio
+- [ ] **WORK-03**: Solo commits locales; el usuario hace push manualmente tras confirmar
 
 ## v2 Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
 
-### Additional Sections
+### Content Protection (Hardening)
 
-- **SECT-01**: "Sobre mí" page with photographer bio and photo
-- **SECT-02**: "Diarios" section (format TBD — pending photographer meeting)
-- **SECT-03**: "35mm" section for analog photography (format TBD)
-- **SECT-04**: Blog section (format TBD)
+- **PROT-07**: Cloudflare Worker proxy for signed URL serving with custom domain (URL obfuscation)
+- **PROT-08**: Anti-scraping rate limiting and bot detection (Upstash rate limiter)
 
-### Social & SEO
+### Analytics
 
-- **SOCL-01**: Social media links connected to real profiles
-- **SEO-01**: SEO metadata and Open Graph tags for sharing
-- **SEO-02**: Analytics integration
+- **ANLY-01**: Cloudflare Web Analytics integration (one script tag)
+- **ANLY-02**: Custom visit tracking dashboard in admin (page views, referrers, dates)
+- **ANLY-03**: Geographic/origin data for visitor insights
 
-### Notifications
+### Editor Polish
 
-- **NOTF-01**: Admin receives notification when contact form is submitted
+- **GRID-08**: Block duplication (clone existing block with content)
+- **GRID-09**: Advanced watermark configurator UI (position, opacity, text vs image)
+
+### Photo Library Enhancements
+
+- **LIBR-06**: Search/filter photos by project, date, or tags
+- **LIBR-07**: Storage usage indicator
+
+### Mobile Enhancements
+
+- **LBOX-06**: Swipe gestures for lightbox navigation on mobile
 
 ## Out of Scope
 
+Explicitly excluded. Documented to prevent scope creep.
+
 | Feature | Reason |
 |---------|--------|
-| OAuth / magic link login | Email/password via Supabase is sufficient for single admin |
-| Mobile app | Web-first approach |
-| Real-time collaboration | Single admin user, no concurrent editing needed |
-| Image editing/cropping in admin | Photos uploaded as-is, Cloudinary handles optimization |
-| E-commerce / print sales | Not part of portfolio vision |
-| Client proofing galleries | Defer to v2+ if photographer requests |
-| Autoplay media | Anti-pattern for photography portfolios per research |
-| Video posts | Storage/bandwidth complexity, defer to future |
+| Categories/groupings for projects | User decided flat directory list is sufficient; ordering by photographer provides enough control |
+| Native video upload/hosting | Storage costs prohibitive on free tier; YouTube/Vimeo embeds cover the need |
+| Multi-user admin | Single photographer, single admin account |
+| E-commerce / photo sales | Not a commerce platform |
+| Blog / article system | Portfolio-only focus |
+| Mobile app | Web-only, responsive design |
+| Client gallery / proofing | Use dedicated tools (Pixieset, Pic-Time) for client delivery |
+| Real-time collaborative editing | Single user; no benefit from websocket/CRDT complexity |
+| AI auto-tagging | API cost and complexity; portfolio is small enough for manual management |
+| Comment / guestbook system | Contact form is sufficient; comments require moderation |
+| Hard DevTools block (crash browser) | Determined users bypass; breaks accessibility tools; soft detection is the limit |
+| Screenshot blocking | Technically impossible at browser level; watermark + low-res display is the real protection |
+| Recovery codes for 2FA | Deferred; single user can reset via DB access if needed |
 
 ## Traceability
 
 Which phases cover which requirements. Updated during roadmap creation.
 
+Note: WORK-01, WORK-02, WORK-03 are cross-cutting workflow constraints that apply to all phases. They are mapped to Phase 1 for traceability purposes.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VIEW-01 | Phase 1 | Pending |
-| VIEW-02 | Phase 1 | Pending |
-| VIEW-03 | Phase 1 | Pending |
-| VIEW-04 | Phase 1 | Pending |
-| VIEW-05 | Phase 1 | Pending |
-| VIEW-06 | Phase 1 | Pending |
-| VIEW-07 | Phase 1 | Pending |
-| VIEW-08 | Phase 1 | Pending |
-| GALL-01 | Phase 1 | Pending |
-| GALL-02 | Phase 1 | Pending |
-| GALL-03 | Phase 1 | Pending |
-| PROJ-01 | Phase 2 | Pending |
-| PROJ-02 | Phase 2 | Pending |
-| PROJ-03 | Phase 2 | Pending |
-| PROJ-04 | Phase 2 | Pending |
-| PROJ-05 | Phase 2 | Pending |
-| PROJ-06 | Phase 2 | Pending |
-| PROJ-07 | Phase 2 | Pending |
-| ADMN-01 | Phase 3 | Pending |
-| ADMN-02 | Phase 3 | Pending |
-| ADMN-03 | Phase 3 | Pending |
-| ADMN-04 | Phase 3 | Pending |
-| ADMN-05 | Phase 3 | Pending |
-| ADMN-06 | Phase 3 | Pending |
-| ADMN-07 | Phase 3 | Pending |
-| ADMN-08 | Phase 3 | Pending |
-| ADMN-09 | Phase 4 | Pending |
-| ADMN-10 | Phase 4 | Pending |
-| ADMN-11 | Phase 4 | Pending |
-| ADMN-12 | Phase 4 | Pending |
-| ADMN-13 | Phase 4 | Pending |
-| ADMN-14 | Phase 4 | Pending |
-| ADMN-15 | Phase 4 | Pending |
-| ADMN-16 | Phase 4 | Pending |
-| ADMN-17 | Phase 4 | Pending |
-| CONT-01 | Phase 3 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| AUTH-06 | Phase 1 | Complete |
+| STOR-01 | Phase 2 | Pending |
+| STOR-02 | Phase 2 | Pending |
+| STOR-03 | Phase 2 | Pending |
+| STOR-04 | Phase 2 | Pending |
+| STOR-05 | Phase 2 | Pending |
+| STOR-06 | Phase 2 | Pending |
+| STOR-07 | Phase 2 | Pending |
+| GRID-01 | Phase 3 | Pending |
+| GRID-02 | Phase 3 | Pending |
+| GRID-03 | Phase 3 | Pending |
+| GRID-04 | Phase 3 | Pending |
+| GRID-05 | Phase 3 | Pending |
+| GRID-06 | Phase 3 | Pending |
+| GRID-07 | Phase 3 | Pending |
+| PROJ-01 | Phase 4 | Pending |
+| PROJ-02 | Phase 4 | Pending |
+| PROJ-03 | Phase 4 | Pending |
+| PROJ-04 | Phase 4 | Pending |
+| LIBR-01 | Phase 5 | Pending |
+| LIBR-02 | Phase 5 | Pending |
+| LIBR-03 | Phase 5 | Pending |
+| LIBR-04 | Phase 5 | Pending |
+| LIBR-05 | Phase 5 | Pending |
+| LBOX-01 | Phase 6 | Pending |
+| LBOX-02 | Phase 6 | Pending |
+| LBOX-03 | Phase 6 | Pending |
+| LBOX-04 | Phase 6 | Pending |
+| LBOX-05 | Phase 6 | Pending |
+| PROT-01 | Phase 7 | Pending |
+| PROT-02 | Phase 7 | Pending |
+| PROT-03 | Phase 7 | Pending |
+| PROT-04 | Phase 7 | Pending |
+| PROT-05 | Phase 7 | Pending |
+| PROT-06 | Phase 7 | Pending |
+| SITE-01 | Phase 8 | Pending |
+| SITE-02 | Phase 8 | Pending |
+| SITE-03 | Phase 8 | Pending |
+| WORK-01 | Phase 1 (cross-cutting) | Pending |
+| WORK-02 | Phase 1 (cross-cutting) | Pending |
+| WORK-03 | Phase 1 (cross-cutting) | Pending |
 
 **Coverage:**
-- v1 requirements: 29 total
-- Mapped to phases: 29
-- Unmapped: 0 ✓
+- v1 requirements: 46 total
+- Mapped to phases: 46
+- Unmapped: 0
 
 ---
-*Requirements defined: 2026-02-12*
-*Last updated: 2026-02-12 after roadmap creation*
+*Requirements defined: 2026-03-11*
+*Last updated: 2026-03-11 — traceability populated after roadmap creation*
