@@ -4,11 +4,13 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("@/lib/db", () => ({
   db: {},
 }));
-vi.mock("resend", () => ({
-  Resend: vi.fn().mockImplementation(() => ({
-    emails: { send: vi.fn() },
-  })),
-}));
+vi.mock("resend", () => {
+  return {
+    Resend: class MockResend {
+      emails = { send: vi.fn() };
+    },
+  };
+});
 
 describe("AUTH-01: better-auth config", () => {
   it("auth instance has getSession API", async () => {
