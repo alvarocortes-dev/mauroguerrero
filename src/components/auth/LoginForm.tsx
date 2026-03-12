@@ -26,7 +26,8 @@ export default function LoginForm() {
   const turnstileWidgetId = useRef<string | null>(null);
   const turnstileContainerRef = useRef<HTMLDivElement>(null);
 
-  const showTurnstile = failedAttempts >= 3;
+  const turnstileEnabled = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const showTurnstile = failedAttempts >= 3 && turnstileEnabled;
 
   // Render Turnstile widget when needed and script is loaded
   useEffect(() => {

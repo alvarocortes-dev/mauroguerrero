@@ -9,7 +9,13 @@ import { Resend } from "resend";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY ?? "");
+  }
+  return _resend;
+}
 
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET!,
@@ -69,7 +75,7 @@ export const auth = betterAuth({
       expiresIn: 300,
       disableSignUp: true,
       sendMagicLink: async ({ email, url }) => {
-        await resend.emails.send({
+        await getResend().emails.send({
           from:
             process.env.RESEND_FROM_EMAIL ?? "acceso@mauroguerrero.com",
           to: [email],
