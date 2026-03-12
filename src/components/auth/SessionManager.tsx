@@ -94,7 +94,7 @@ export default function SessionManager({
     loadSessions();
   }, [loadSessions]);
 
-  const handleRevoke = async (sessionId: string, isAdmin = false) => {
+  const handleRevoke = async (sessionId: string, sessionToken?: string, isAdmin = false) => {
     const confirmed = window.confirm(
       "Estas seguro de que quieres cerrar esta sesion?"
     );
@@ -102,11 +102,11 @@ export default function SessionManager({
 
     setState("revoking");
     try {
-      if (isAdmin) {
+      if (isAdmin && sessionToken) {
         await fetch("/api/auth/admin/sessions", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
+          body: JSON.stringify({ sessionToken }),
         });
         setAdminAccounts((prev) =>
           prev.map((acc) => ({
@@ -161,7 +161,7 @@ export default function SessionManager({
       {!isCurrent && (
         <button
           type="button"
-          onClick={() => handleRevoke(session.id, isAdmin)}
+          onClick={() => handleRevoke(session.id, session.token, isAdmin)}
           disabled={state === "revoking"}
           className="text-red-400 hover:text-red-300 text-sm disabled:opacity-50 transition-colors whitespace-nowrap"
         >

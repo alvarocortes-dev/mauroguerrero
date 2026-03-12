@@ -31,6 +31,7 @@ export async function GET() {
   const allSessions = await db
     .select({
       id: sessionTable.id,
+      token: sessionTable.token,
       userId: sessionTable.userId,
       userAgent: sessionTable.userAgent,
       ipAddress: sessionTable.ipAddress,
@@ -63,16 +64,16 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Solo acceso dev" }, { status: 403 });
   }
 
-  const { sessionId } = await request.json();
-  if (!sessionId) {
+  const { sessionToken } = await request.json();
+  if (!sessionToken) {
     return NextResponse.json(
-      { error: "sessionId requerido" },
+      { error: "sessionToken requerido" },
       { status: 400 }
     );
   }
 
-  // Revoke the session via better-auth admin API
-  await auth.api.revokeSession({ body: { id: sessionId } });
+  // Revoke the session via better-auth API (expects token, not id)
+  await auth.api.revokeSession({ body: { token: sessionToken } });
 
   return NextResponse.json({ success: true });
 }
