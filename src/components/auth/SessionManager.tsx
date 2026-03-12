@@ -5,7 +5,7 @@ import { authClient } from "@/lib/auth/client";
 import { Monitor, Smartphone, Tablet } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import UAParser from "ua-parser-js";
+import { UAParser } from "ua-parser-js";
 
 interface SessionInfo {
   id: string;
