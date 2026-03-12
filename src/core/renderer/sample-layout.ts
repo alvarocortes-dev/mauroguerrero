@@ -1,0 +1,111 @@
+import type { Layout } from "./types";
+import { nanoid } from "nanoid";
+
+export const sampleLayout: Layout = {
+  id: "layout_home",
+  slug: "home",
+  title: "Mauro Guerrero",
+  updatedAt: new Date().toISOString(),
+  items: [
+    {
+      id: nanoid(),
+      type: "image",
+      src: "https://images.unsplash.com/photo-1469474968028-56623f02e42e",
+      alt: "Montañas al amanecer",
+      width: 1800,
+      height: 1200,
+      caption: "Amanecer en los Alpes",
+    },
+    {
+      id: nanoid(),
+      type: "image",
+      src: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
+      alt: "Cabaña en el bosque",
+      width: 1600,
+      height: 2000,
+    },
+    {
+      id: nanoid(),
+      type: "text",
+      content:
+        "Un viaje a través de los grandes paisajes. Selección de proyectos, rutas y relatos visuales capturados alrededor del mundo.",
+    },
+    {
+      id: nanoid(),
+      type: "image",
+      src: "https://images.unsplash.com/photo-1501785888041-af3ef285b470",
+      alt: "Cordillera nevada",
+      width: 1800,
+      height: 1200,
+    },
+    {
+      id: nanoid(),
+      type: "image",
+      src: "https://images.unsplash.com/photo-1470770841072-f978cf4d019e",
+      alt: "Valle con niebla",
+      width: 1600,
+      height: 1067,
+      caption: "Islandia, 2024",
+    },
+    {
+      id: nanoid(),
+      type: "spacer",
+      height: 24,
+    },
+    {
+      id: nanoid(),
+      type: "image",
+      src: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e",
+      alt: "Bosque y lago",
+      width: 1600,
+      height: 1067,
+    },
+    {
+      id: nanoid(),
+      type: "image",
+      src: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4",
+      alt: "Montañas Dolomitas",
+      width: 1800,
+      height: 2400,
+    },
+    {
+      id: nanoid(),
+      type: "image",
+      src: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e",
+      alt: "Campo abierto",
+      width: 1800,
+      height: 1200,
+    },
+    {
+      id: nanoid(),
+      type: "text",
+      content:
+        "La fotografía es la forma en que documento mi conexión con la naturaleza. Cada imagen cuenta una historia de exploración y silencio.",
+    },
+    {
+      id: nanoid(),
+      type: "image",
+      src: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b",
+      alt: "Montañas verdes",
+      width: 1800,
+      height: 1200,
+    },
+    {
+      id: nanoid(),
+      type: "image",
+      src: "https://images.unsplash.com/photo-1504608524841-42fe6f032b4b",
+      alt: "Clima tormentoso",
+      width: 1600,
+      height: 2000,
+    },
+    {
+      id: nanoid(),
+      type: "image",
+      src: "https://images.unsplash.com/photo-1519681393784-d120267933ba",
+      alt: "Noche estrellada",
+      width: 1800,
+      height: 1200,
+      caption: "Bajo las estrellas",
+    },
+  ],
+};
