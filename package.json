@@ -17,8 +17,6 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.94.0",
     "@tiptap/extension-placeholder": "^3.19.0",
     "@tiptap/react": "^3.19.0",
     "@tiptap/starter-kit": "^3.19.0",
