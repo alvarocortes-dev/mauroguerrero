@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-03-11T15:13:27Z"
-last_activity: 2026-03-11 — Plan 01-03 executed (TOTP enforcement + dev account)
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-03-12T12:00:00Z"
+last_activity: 2026-03-12 — Plan 01-04 executed (Login UI + TOTP setup pages)
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 4
+  percent: 80
 ---
 
 # Project State
@@ -26,28 +26,28 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 ## Current Position
 
 Phase: 1 of 8 (Auth Migration)
-Plan: 3 of 5 in current phase
+Plan: 4 of 5 in current phase
 Status: Executing
-Last activity: 2026-03-11 — Plan 01-03 executed (TOTP enforcement + dev account)
+Last activity: 2026-03-12 — Plan 01-04 executed (Login UI + TOTP setup pages)
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 5 min
-- Total execution time: 0.23 hours
+- Total plans completed: 4
+- Average duration: 10 min
+- Total execution time: 0.65 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-auth-migration | 3/5 | 14 min | 5 min |
+| 01-auth-migration | 4/5 | 39 min | 10 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (6 min), 01-03 (6 min)
-- Trend: Stable
+- Last 5 plans: 01-01 (2 min), 01-02 (6 min), 01-03 (6 min), 01-04 (25 min)
+- Trend: Stable (01-04 longer due to UI + checkpoint)
 
 *Updated after each plan completion*
 
@@ -70,6 +70,10 @@ Recent decisions affecting current work:
 - [01-03]: hooks.after es un solo AuthMiddleware (no array) — createAuthMiddleware de better-auth/api
 - [01-03]: Sesion dev-account via internalAdapter.createSession (no hay API publica createSession)
 - [01-03]: Cookie de sesion establecida manualmente con atributos de authCookies.sessionToken
+- [01-04]: Route setup-totp en /editor/setup-totp (dentro de route group editor) para coherencia con middleware
+- [01-04]: Turnstile solo se activa con NEXT_PUBLIC_TURNSTILE_SITE_KEY (graceful degradation)
+- [01-04]: Resend lazy init para evitar crash sin API key en desarrollo
+- [01-04]: API twoFactor: enable({password}) genera URI, verifyTotp({code}) activa
 
 ### Pending Todos
 
@@ -83,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T15:13:27Z
-Stopped at: Completed 01-03-PLAN.md
-Resume file: .planning/phases/01-auth-migration/01-03-SUMMARY.md
+Last session: 2026-03-12T12:00:00Z
+Stopped at: Completed 01-04-PLAN.md
+Resume file: .planning/phases/01-auth-migration/01-04-SUMMARY.md
