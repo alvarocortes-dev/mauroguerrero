@@ -72,8 +72,11 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  // Revoke the session via better-auth API (expects token, not id)
-  await auth.api.revokeSession({ body: { token: sessionToken } });
+  // Revoke the session via better-auth API (requires headers + token)
+  await auth.api.revokeSession({
+    headers: request.headers,
+    body: { token: sessionToken },
+  });
 
   return NextResponse.json({ success: true });
 }

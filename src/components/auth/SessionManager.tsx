@@ -115,7 +115,7 @@ export default function SessionManager({
           }))
         );
       } else {
-        await authClient.multiSession.revoke({ sessionId });
+        await authClient.multiSession.revoke({ sessionToken: sessionToken ?? sessionId });
         setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       }
       setRevokedMessage("Sesion revocada");
