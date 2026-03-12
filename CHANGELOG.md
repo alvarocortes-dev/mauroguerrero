@@ -21,5 +21,5 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 - **Tipografía**: Ajustes de tracking y tamaño en menú de navegación.
 
 ### Corregido
-- **Toggle en Desktop**: Centrado correcto del botón de tema usando `w-full` en el contenedor.
+- **Toggle en Desktop**: Centrado del botón de tema usando `w-full` en el contenedor.
 - **Inversión de Colores**: Solucionado conflicto de variables globales en modales mediante clases explícitas (`text-black` / `dark:text-white`).
