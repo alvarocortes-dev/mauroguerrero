@@ -12,7 +12,7 @@ Eight phases following a strict dependency chain: auth and storage must be solid
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Auth Migration** - Replace Supabase with better-auth (credentials + TOTP 2FA) and harden all protected routes against CVE-2025-29927
+- [x] **Phase 1: Auth Migration** - Replace Supabase with better-auth (credentials + TOTP 2FA) and harden all protected routes against CVE-2025-29927 (completed 2026-03-12)
 - [ ] **Phase 2: Storage + Image Pipeline** - Migrate Cloudinary to Cloudflare R2 and build the Sharp processing pipeline (EXIF, resize, watermark, WebP)
 - [ ] **Phase 3: Grid Editor** - Build the block-based CSS Grid editor with custom dnd-kit collision detection, resize handles, and undo/redo
 - [ ] **Phase 4: Projects System** - CRUD for projects with per-project grid layouts, draft/published status, and ordering control
@@ -147,7 +147,7 @@ Phases execute in numeric order. Phase 5 (Photo Library UI) depends on Phase 2 a
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Auth Migration | 4/5 | In Progress|  |
+| 1. Auth Migration | 5/5 | Complete   | 2026-03-12 |
 | 2. Storage + Image Pipeline | 0/TBD | Not started | - |
 | 3. Grid Editor | 0/TBD | Not started | - |
 | 4. Projects System | 0/TBD | Not started | - |

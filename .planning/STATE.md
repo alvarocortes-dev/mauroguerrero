@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-03-12T12:00:00Z"
-last_activity: 2026-03-12 — Plan 01-04 executed (Login UI + TOTP setup pages)
+stopped_at: Completed 01-05-PLAN.md (Phase 1 complete)
+last_updated: "2026-03-12T03:59:16Z"
+last_activity: 2026-03-12 — Plan 01-05 executed (Sesiones, limpieza Supabase, tests GREEN)
 progress:
   total_phases: 8
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
-  percent: 80
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State
@@ -21,33 +21,33 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** The photographer can independently build and manage beautiful, custom-layout galleries with full creative control — fast, intuitive, and protected.
-**Current focus:** Phase 1 — Auth Migration
+**Current focus:** Phase 1 complete — ready for Phase 2
 
 ## Current Position
 
-Phase: 1 of 8 (Auth Migration)
-Plan: 4 of 5 in current phase
-Status: Executing
-Last activity: 2026-03-12 — Plan 01-04 executed (Login UI + TOTP setup pages)
+Phase: 1 of 8 (Auth Migration) — COMPLETE
+Plan: 5 of 5 in current phase
+Status: Phase 1 Complete
+Last activity: 2026-03-12 — Plan 01-05 executed (Sesiones, limpieza Supabase, tests GREEN)
 
-Progress: [████████░░] 80%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 10 min
-- Total execution time: 0.65 hours
+- Total plans completed: 5
+- Average duration: 9 min
+- Total execution time: 0.72 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-auth-migration | 4/5 | 39 min | 10 min |
+| 01-auth-migration | 5/5 | 43 min | 9 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 01-02 (6 min), 01-03 (6 min), 01-04 (25 min)
-- Trend: Stable (01-04 longer due to UI + checkpoint)
+- Last 5 plans: 01-01 (2 min), 01-02 (6 min), 01-03 (6 min), 01-04 (25 min), 01-05 (4 min)
+- Trend: Stable
 
 *Updated after each plan completion*
 
@@ -74,6 +74,10 @@ Recent decisions affecting current work:
 - [01-04]: Turnstile solo se activa con NEXT_PUBLIC_TURNSTILE_SITE_KEY (graceful degradation)
 - [01-04]: Resend lazy init para evitar crash sin API key en desarrollo
 - [01-04]: API twoFactor: enable({password}) genera URI, verifyTotp({code}) activa
+- [01-05]: getAuthSession() como helper centralizado para validacion server-side en API routes
+- [01-05]: SessionGuard con polling cada 30s (sin WebSocket, apropiado para 2 usuarios)
+- [01-05]: Admin endpoint protegido por DEV_EMAIL env var, no por rol en DB
+- [01-05]: Supabase completamente eliminado del codebase
 
 ### Pending Todos
 
@@ -87,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T12:00:00Z
-Stopped at: Completed 01-04-PLAN.md
-Resume file: .planning/phases/01-auth-migration/01-04-SUMMARY.md
+Last session: 2026-03-12T03:59:16Z
+Stopped at: Completed 01-05-PLAN.md (Phase 1 complete)
+Resume file: .planning/phases/01-auth-migration/01-05-SUMMARY.md
