@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Script from "next/script";
 import { authClient } from "@/lib/auth/client";
 
@@ -14,6 +15,8 @@ type LoginState =
 type TabType = "password" | "magic-link";
 
 export default function LoginForm() {
+  const searchParams = useSearchParams();
+  const reason = searchParams.get("reason");
   const [state, setState] = useState<LoginState>("idle");
   const [activeTab, setActiveTab] = useState<TabType>("password");
   const [email, setEmail] = useState("");
@@ -348,6 +351,12 @@ export default function LoginForm() {
             Enlace magico
           </button>
         </div>
+
+        {reason === "revoked" && (
+          <div className="mb-4 rounded-lg bg-blue-500/10 border border-blue-500/20 p-3 text-sm text-blue-400">
+            Sesion cerrada desde otro dispositivo.
+          </div>
+        )}
 
         {errorMessage && (
           <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/20 p-3 text-sm text-red-400">
